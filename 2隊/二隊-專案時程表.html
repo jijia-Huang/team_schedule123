@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>專案進度排程 · 2026 Q3</title>
+<style>
+  :root{
+    --bg:#0f1729;
+    --panel:#161f35;
+    --panel-2:#1c2740;
+    --line:#283355;
+    --ink:#e8edf7;
+    --ink-dim:#9fb0d0;
+    --ink-soft:#6f80a4;
+    --c-director:#6366f1;
+    --c-server:#06b6d4;
+    --c-client:#f59e0b;
+    --c-prob:#ec4899;
+    --milestone:#22c55e;
+    --holiday:#475569;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,sans-serif;
+    background:radial-gradient(1200px 600px at 80% -10%,#1d2a4d 0%,transparent 60%),var(--bg);
+    color:var(--ink);
+    padding:40px 28px 64px;
+    -webkit-font-smoothing:antialiased;
+    min-height: 100vh;
+  }
+  .wrap{max-width:1500px;margin:0 auto;}
+
+  header.top{margin-bottom:28px;}
+  .eyebrow{font-size:12px;letter-spacing:.32em;color:var(--ink-soft);text-transform:uppercase;font-weight:600;}
+  h1{font-size:42px;font-weight:800;margin:8px 0 10px;letter-spacing:.01em;}
+  h1 .accent{background:linear-gradient(90deg,var(--c-director),var(--c-prob));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .subtitle{color:var(--ink-dim);font-size:15px;}
+
+  .legend{display:flex;flex-wrap:wrap;gap:18px;margin:22px 0 26px;align-items:center;}
+  .legend .item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-dim);font-weight:600;}
+  .dot{width:12px;height:12px;border-radius:4px;}
+  .legend .sep{width:1px;height:18px;background:var(--line);}
+
+  /* highlight banner */
+  .banner{
+    display:flex;flex-wrap:wrap;gap:14px;margin-bottom:30px;
+  }
+  .stat{
+    flex:1;min-width:180px;background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;padding:16px 18px;position:relative;overflow:hidden;
+  }
+  .stat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;}
+  .stat.m1::before{background:var(--milestone);}
+  .stat.m2::before{background:var(--c-director);}
+  .stat.m3::before{background:var(--c-client);}
+  .stat.m4::before{background:var(--c-prob);}
+  .stat .k{font-size:12px;color:var(--ink-soft);font-weight:600;letter-spacing:.05em;}
+  .stat .v{font-size:22px;font-weight:800;margin-top:4px;}
+  .stat .v small{font-size:13px;font-weight:600;color:var(--ink-dim);}
+
+  /* grid */
+  .grid{
+    display:grid;
+    grid-template-columns:132px repeat(4,1fr);
+    gap:10px;
+  }
+  .col-head{
+    position:sticky;top:0;z-index:5;
+    padding:14px 16px;border-radius:12px;font-weight:800;font-size:15px;
+    display:flex;align-items:center;gap:10px;
+    background:var(--panel-2);border:1px solid var(--line);
+  }
+  .col-head .role-dot{width:14px;height:14px;border-radius:5px;}
+  .col-head.week-head{background:transparent;border:none;color:var(--ink-soft);font-size:12px;letter-spacing:.2em;justify-content:flex-end;}
+
+  .wk{
+    display:flex;flex-direction:column;justify-content:center;align-items:flex-end;
+    padding:14px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--line);
+    text-align:right;
+  }
+  .wk .num{font-size:11px;color:var(--ink-soft);font-weight:700;letter-spacing:.1em;}
+  .wk .range{font-size:15px;font-weight:800;margin-top:3px;white-space:nowrap;}
+
+  .cell{
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:12px;display:flex;flex-direction:column;gap:7px;min-height:64px;
+    transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease;
+  }
+  .cell:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 8px 26px rgba(0,0,0,.35);}
+  .cell.empty{background:transparent;border-style:dashed;border-color:#22305088;}
+
+  .task{
+    font-size:13px;line-height:1.45;color:var(--ink);
+    padding:7px 10px;border-radius:8px;background:var(--panel-2);
+    border-left:3px solid var(--accent);
+  }
+  .task .game{color:var(--accent);font-weight:700;}
+  .task.mtg{opacity:.92;}
+  .task.mtg::before{content:"完成 ";font-size:10px;font-weight:800;color:var(--ink-soft);letter-spacing:.05em;}
+
+  .task.milestone{
+    background:linear-gradient(90deg,rgba(34,197,94,.18),var(--panel-2));
+    border-left-color:var(--milestone);font-weight:700;
+  }
+  .task.milestone::after{content:"🚀";margin-left:6px;}
+
+  /* holiday row */
+  .holiday-row{
+    grid-column:1 / -1;
+    background:repeating-linear-gradient(45deg,#1a2540,#1a2540 14px,#16203a 14px,#16203a 28px);
+    border:1px solid var(--line);border-radius:12px;
+    padding:14px 20px;display:flex;align-items:center;gap:14px;color:var(--ink-dim);font-weight:700;
+  }
+  .holiday-row .tag{background:var(--holiday);color:#fff;padding:4px 12px;border-radius:20px;font-size:13px;}
+  .holiday-row .rng{color:var(--ink-soft);font-size:13px;font-weight:600;}
+
+  footer{margin-top:34px;color:var(--ink-soft);font-size:12px;text-align:center;}
+
+  @media(max-width:1100px){
+    .grid{grid-template-columns:1fr;}
+    .col-head.week-head{display:none;}
+    .col-head{position:static;}
+    .wk{flex-direction:row;justify-content:space-between;align-items:center;}
+    .role-block{margin-top:8px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">Project Schedule · 2026</div>
+    <h1>遊戲專案進度排程 — <span class="accent">孫悟空 & 貂蟬</span></h1>
+    <div class="subtitle">2026/06/01 – 07/31 ｜ 編導 · Server · Client · 機率 四職務週進度總覽</div>
+  </header>
+
+  <div class="banner">
+    <div class="stat m1"><div class="k">關鍵里程碑</div><div class="v">孫悟空上線 <small>7/29</small></div></div>
+    <div class="stat m2"><div class="k">排程期間</div><div class="v">9 週</div></div>
+    <div class="stat m3"><div class="k">涵蓋職務</div><div class="v">4 <small>編導/Server/Client/機率</small></div></div>
+    <div class="stat m4"><div class="k">主要專案</div><div class="v">孫悟空 <small>+ 貂蟬秘曲、至尊王牌</small></div></div>
+  </div>
+
+  <div class="legend">
+    <div class="item"><span class="dot" style="background:var(--c-director)"></span>編導</div>
+    <div class="item"><span class="dot" style="background:var(--c-server)"></span>Server</div>
+    <div class="item"><span class="dot" style="background:var(--c-client)"></span>Client</div>
+    <div class="item"><span class="dot" style="background:var(--c-prob)"></span>機率</div>
+    <span class="sep"></span>
+    <div class="item"><span class="dot" style="background:var(--milestone)"></span>里程碑 / 上線</div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <footer>製作日期 <span id="genDate"></span></footer>
+</div>
+
+<script>
+document.getElementById('genDate').innerText = new Date().toLocaleDateString('zh-TW');
+
+const roles = [
+  {key:"director", name:"編導",   color:"var(--c-director)"},
+  {key:"server",   name:"Server", color:"var(--c-server)"},
+  {key:"client",   name:"Client", color:"var(--c-client)"},
+  {key:"prob",     name:"機率",   color:"var(--c-prob)"},
+];
+
+// helper: t(text), mtg:true 標完成, ms:true 里程碑
+const T  = (t)=>({t});
+const M  = (t)=>({t,mtg:true});
+const MS = (t)=>({t,ms:true});
+
+const weeks = [
+  {num:"W1", range:"6/01–6/05", 
+    director:[T("新版【貂蟬秘曲】道具卡、營運需求"),T("【孫悟空】2D 素材整理"),T("撰寫【孫悟空】程式規格書"),T("4月份 AI 研究報告撰寫"),M("【孫悟空】平台美術開單"),M("剿滅董卓上榜圖標開單")],
+    server:[T("【至尊王牌】不同 Bet 不同輪帶功能、壓測"),T("【貂蟬秘曲】C++ 開發 (免遊3調整)")],
+    client:[T("【貂蟬秘曲】上線準備 (美術資源更換、Shader)"),T("【孫悟空】可進遊戲版 (專案搬移、Spine串接、規格確認)"),MS("【貂蟬秘曲】完成 (6/5)")],
+    prob:[T("建立【至尊王牌】逐局數據統整工具"),T("調整【至尊王牌】機率"),T("【貂蟬秘曲】驗證快測工具、建立逐局統整工具")]},
+
+  {num:"W2", range:"6/08–6/12", 
+    director:[T("撰寫【貂蟬秘曲】客服查詢工具規格書"),T("5月份 AI 研究報告撰寫"),MS("【貂蟬秘曲】顧問試玩 (6/12)")],
+    server:[T("【貂蟬秘曲】C++ 開發 (串接 count 給獎、白名單給獎)"),T("【孫悟空】C++ 開發 (完整功能開發)"),MS("【貂蟬秘曲】顧問試玩 (6/12)")],
+    client:[T("【孫悟空】MG 可Spin版本 (MG轉輪實作、Symbol串接)"),T("【孫悟空】FG 可Spin版本 (FG轉輪實作)"),MS("【貂蟬秘曲】顧問試玩 (6/12)")],
+    prob:[T("【貂蟬秘曲】顧問版機率設定"),T("調整【貂蟬秘曲】不同 Bet 不同輪帶"),MS("【貂蟬秘曲】顧問試玩 (6/12)")]},
+
+  {num:"W3", range:"6/15–6/19", 
+    director:[T("【貂蟬秘曲】品檢"),T("【孫悟空】音樂音效格書撰寫"),T("【孫悟空】完成版盤面錄製剪輯"),T("【命運三女神】動態美術格書撰寫")],
+    server:[T("【貂蟬秘曲】C++ 開發 (驗證神力卡&盤面資料)"),T("【貂蟬秘曲】品檢")],
+    client:[T("【孫悟空】完整可玩版 (假封包測試)"),T("【貂蟬秘曲】品檢")],
+    prob:[T("產出【貂蟬秘曲】神力卡、白名單盤面資料"),T("建立【貂蟬秘曲】詳細數據日報追蹤工具"),T("【貂蟬秘曲】品檢")]},
+
+  {num:"W4", range:"6/22–6/26", 
+    director:[T("驗證【貂蟬秘曲】直播區（含直播內功能、憑證）"),T("開立【貂蟬秘曲】客服說明會"),T("驗證【貂蟬秘曲】外部 DB 設定值"),T("【貂蟬秘曲】上線前確認"),T("驗證【貂蟬秘曲】給獎工具")],
+    server:[T("【孫悟空】C+S 串接 (封包串接、封包內容驗證)"),T("【貂蟬秘曲】C++ 開發 (機器人壓測)"),MS("【孫悟空】C/S 完成 (6/26)")],
+    client:[T("【孫悟空】C+S 串接 (封包串接、內容驗證)")],
+    prob:[T("【貂蟬秘曲】上線機率最後調整")]},
+
+  {num:"W5", range:"6/29–7/03", 
+    director:[MS("【貂蟬秘曲】上線 (6/30)"),T("【孫悟空】音樂音效驗證"),T("【孫悟空】遊戲畫面規格確認")],
+    server:[MS("【貂蟬秘曲】上線 (6/30)"),T("【孫悟空】C+S 串接 (極端狀況處理)")],
+    client:[MS("【貂蟬秘曲】上線 (6/30)"),T("【孫悟空】C+S 串接 (極端狀況處理)")],
+    prob:[MS("【貂蟬秘曲】上線 (6/30)"),T("【孫悟空】初版機率驗證快測工具"),T("建立【孫悟空】逐局數據統整工作流")]},
+
+  {num:"W6", range:"7/06–7/10", 
+    director:[T("撰寫【貂蟬秘曲】上線首週報告"),MS("【孫悟空】顧問試玩 (7/10)")],
+    server:[T("【孫悟空】最後調整"),MS("【孫悟空】顧問試玩 (7/10)")],
+    client:[T("【孫悟空】最後調整"),MS("【孫悟空】顧問試玩 (7/10)")],
+    prob:[T("撰寫【貂蟬秘曲】上線首週報告"),T("調整【孫悟空】顧問版機率設定"),MS("【孫悟空】顧問試玩 (7/10)")]},
+
+  {num:"W7", range:"7/13–7/17", 
+    director:[T("撰寫【貂蟬秘曲】銷售力報告"),T("【孫悟空】品檢")],
+    server:[T("撰寫【貂蟬秘曲】銷售力報告"),T("【孫悟空】品檢")],
+    client:[T("撰寫【貂蟬秘曲】銷售力報告"),T("【孫悟空】品檢")],
+    prob:[T("撰寫【貂蟬秘曲】銷售力報告"),T("調整【孫悟空】不同 Bet 不同輪帶"),T("產出【孫悟空】神力卡、白名單盤面資料"),T("【孫悟空】品檢")]},
+
+  {num:"HOLIDAY", range:"7/20–7/24", holiday:true},
+
+  {num:"W8", range:"7/27–7/31", 
+    director:[T("驗證【孫悟空】直播區（含直播內功能、憑證）"),T("開立【孫悟空】客服說明會"),T("驗證【孫悟空】外部 DB 設定值"),T("【孫悟空】上線前確認"),T("驗證【孫悟空】給獎工具"),MS("【孫悟空】上線 (7/29)")],
+    server:[MS("【孫悟空】上線 (7/29)")],
+    client:[MS("【孫悟空】上線 (7/29)")],
+    prob:[T("建立【孫悟空】詳細數據日報追蹤工具"),MS("【孫悟空】上線 (7/29)")]},
+];
+
+const grid = document.getElementById("grid");
+
+// header row
+grid.appendChild(el(`<div class="col-head week-head">週次</div>`));
+roles.forEach(r=>{
+  grid.appendChild(el(`<div class="col-head"><span class="role-dot" style="background:${r.color}"></span>${r.name}</div>`));
+});
+
+// rows
+weeks.forEach(w=>{
+  if(w.holiday){
+    grid.appendChild(el(`<div class="holiday-row"><span class="tag">小暑假</span><span class="rng">${w.range}</span><span>團隊休假週 — 無排程項目</span></div>`));
+    return;
+  }
+  grid.appendChild(el(`<div class="wk"><span class="num">${w.num}</span><span class="range">${w.range}</span></div>`));
+  roles.forEach(r=>{
+    const items = w[r.key]||[];
+    const cell = el(`<div class="cell" style="--accent:${r.color}"></div>`);
+    if(items.length===0){ cell.classList.add("empty"); }
+    items.forEach(it=>{
+      let cls="task";
+      if(it.mtg) cls+=" mtg";
+      if(it.ms)  cls+=" milestone";
+      cell.appendChild(el(`<div class="${cls}">${highlight(it.t)}</div>`));
+    });
+    grid.appendChild(cell);
+  });
+});
+
+function highlight(t){ return t.replace(/【([^】]+)】/g,'<span class="game">【$1】</span>'); }
+function el(html){ const d=document.createElement("div"); d.innerHTML=html.trim(); return d.firstChild; }
+</script>
+</body>
+</html>
