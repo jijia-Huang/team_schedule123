@@ -10,7 +10,7 @@ on:
       source_file:
         description: "HTML file to deploy when html_content is empty."
         required: true
-        default: "2隊/group2.html"
+        default: "main.html"
         type: string
 
 permissions:
@@ -40,6 +40,7 @@ jobs:
         run: |
           python <<'PY'
           import os
+          import json
           import shutil
           from pathlib import Path
 
@@ -59,6 +60,23 @@ jobs:
                   shutil.copytree(item, target)
               else:
                   shutil.copy2(item, target)
+
+          teams = []
+          for item in sorted(root.iterdir(), key=lambda path: path.name):
+              if item.name in excluded or not item.is_dir():
+                  continue
+
+              schedule = item / "schedule.html"
+              if schedule.is_file():
+                  teams.append({
+                      "name": item.name,
+                      "href": f"{item.name}/schedule.html",
+                  })
+
+          (dist / "teams.json").write_text(
+              json.dumps(teams, ensure_ascii=False, indent=2),
+              encoding="utf-8",
+          )
 
           html = os.environ.get("CUSTOM_HTML", "")
           if html.strip():

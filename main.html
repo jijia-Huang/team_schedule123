@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>隊伍排程首頁</title>
+<style>
+  :root{
+    --bg:#0f1729;
+    --panel:#161f35;
+    --panel-2:#1c2740;
+    --line:#283355;
+    --ink:#e8edf7;
+    --ink-dim:#9fb0d0;
+    --ink-soft:#6f80a4;
+    --c-director:#6366f1;
+    --c-server:#06b6d4;
+    --c-client:#f59e0b;
+    --c-prob:#ec4899;
+    --milestone:#22c55e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,sans-serif;
+    background:radial-gradient(1200px 600px at 80% -10%,#1d2a4d 0%,transparent 60%),var(--bg);
+    color:var(--ink);
+    padding:40px 28px 64px;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .wrap{max-width:1180px;margin:0 auto;}
+
+  header.top{margin-bottom:28px;}
+  .eyebrow{font-size:12px;letter-spacing:.32em;color:var(--ink-soft);text-transform:uppercase;font-weight:600;}
+  h1{font-size:42px;font-weight:800;margin:8px 0 10px;letter-spacing:.01em;}
+  h1 .accent{background:linear-gradient(90deg,var(--c-director),var(--c-prob));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .subtitle{color:var(--ink-dim);font-size:15px;line-height:1.7;}
+
+  .banner{
+    display:flex;flex-wrap:wrap;gap:14px;margin-bottom:30px;
+  }
+  .stat{
+    flex:1;min-width:180px;background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;padding:16px 18px;position:relative;overflow:hidden;
+  }
+  .stat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;}
+  .stat.m1::before{background:var(--milestone);}
+  .stat.m2::before{background:var(--c-director);}
+  .stat.m3::before{background:var(--c-client);}
+  .stat .k{font-size:12px;color:var(--ink-soft);font-weight:600;letter-spacing:.05em;}
+  .stat .v{font-size:22px;font-weight:800;margin-top:4px;}
+  .stat .v small{font-size:13px;font-weight:600;color:var(--ink-dim);}
+
+  .section-head{
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    margin:4px 0 14px;
+  }
+  .section-head h2{font-size:18px;font-weight:800;}
+  .section-head .hint{font-size:12px;color:var(--ink-soft);font-weight:700;letter-spacing:.08em;}
+
+  .team-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:14px;
+  }
+  .team-card{
+    min-height:128px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:18px;
+    color:var(--ink);
+    text-decoration:none;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    position:relative;
+    overflow:hidden;
+    transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease;
+  }
+  .team-card::before{
+    content:"";
+    position:absolute;
+    left:0;top:0;bottom:0;width:4px;
+    background:linear-gradient(180deg,var(--c-director),var(--c-prob));
+  }
+  .team-card:hover,.team-card:focus-visible{
+    transform:translateY(-2px);
+    border-color:var(--c-director);
+    box-shadow:0 8px 26px rgba(0,0,0,.35);
+    outline:none;
+  }
+  .team-name{
+    font-size:24px;
+    font-weight:800;
+    line-height:1.25;
+    overflow-wrap:anywhere;
+  }
+  .team-meta{
+    color:var(--ink-dim);
+    font-size:13px;
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-top:18px;
+  }
+  .team-meta .path{color:var(--ink-soft);font-size:12px;overflow-wrap:anywhere;}
+  .arrow{font-size:18px;color:var(--milestone);line-height:1;}
+
+  .message{
+    background:var(--panel);
+    border:1px dashed var(--line);
+    border-radius:12px;
+    color:var(--ink-dim);
+    padding:18px;
+    line-height:1.7;
+  }
+
+  footer{margin-top:34px;color:var(--ink-soft);font-size:12px;text-align:center;}
+
+  @media(max-width:700px){
+    body{padding:28px 18px 44px;}
+    h1{font-size:32px;}
+    .section-head{align-items:flex-start;flex-direction:column;gap:6px;}
+    .team-card{min-height:116px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">Project Schedule</div>
+    <h1>隊伍排程總覽 — <span class="accent">選擇你的團隊</span></h1>
+    <div class="subtitle">從目前 repo 內含有 schedule.html 的隊伍資料夾自動產生入口。</div>
+  </header>
+
+  <div class="banner">
+    <div class="stat m1"><div class="k">首頁入口</div><div class="v">GitHub Pages</div></div>
+    <div class="stat m2"><div class="k">資料來源</div><div class="v">teams.json</div></div>
+    <div class="stat m3"><div class="k">更新方式</div><div class="v">重新部署 <small>自動掃描</small></div></div>
+  </div>
+
+  <div class="section-head">
+    <h2>隊伍列表</h2>
+    <div class="hint" id="teamCount">LOADING</div>
+  </div>
+
+  <main class="team-grid" id="teamGrid" aria-live="polite">
+    <div class="message">正在讀取隊伍資料...</div>
+  </main>
+
+  <footer>製作日期 <span id="genDate"></span></footer>
+</div>
+
+<script>
+document.getElementById("genDate").innerText = new Date().toLocaleDateString("zh-TW");
+
+const grid = document.getElementById("teamGrid");
+const teamCount = document.getElementById("teamCount");
+
+loadTeams();
+
+async function loadTeams(){
+  try{
+    const response = await fetch("teams.json", {cache:"no-store"});
+    if(!response.ok){
+      throw new Error("teams.json not found");
+    }
+
+    const teams = await response.json();
+    const validTeams = Array.isArray(teams) ? teams.filter(team => team && team.name && team.href) : [];
+    renderTeams(validTeams);
+  }catch(error){
+    teamCount.innerText = "UNAVAILABLE";
+    grid.innerHTML = '<div class="message">目前無法讀取 teams.json。請透過 GitHub Actions 部署後再查看首頁。</div>';
+  }
+}
+
+function renderTeams(teams){
+  teamCount.innerText = `${teams.length} TEAM${teams.length === 1 ? "" : "S"}`;
+
+  if(teams.length === 0){
+    grid.innerHTML = '<div class="message">目前沒有可顯示的隊伍。請建立隊伍資料夾，並在其中放入 schedule.html。</div>';
+    return;
+  }
+
+  grid.innerHTML = teams.map(team => `
+    <a class="team-card" href="${escapeAttribute(team.href)}">
+      <div class="team-name">${escapeHtml(team.name)}</div>
+      <div class="team-meta">
+        <span class="path">${escapeHtml(team.href)}</span>
+        <span class="arrow" aria-hidden="true">→</span>
+      </div>
+    </a>
+  `).join("");
+}
+
+function escapeHtml(value){
+  return String(value).replace(/[&<>"']/g, char => ({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#39;"
+  }[char]));
+}
+
+function escapeAttribute(value){
+  return escapeHtml(value).replace(/`/g, "&#96;");
+}
+</script>
+</body>
+</html>
