@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>三隊進度排程系統</title>
+    <!-- Google Fonts Inter & Noto Sans TC -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- SheetJS (XLSX) CDN for Excel Import/Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- Application Script Block (Moved to HEAD before AlpineJS to guarantee execution order) -->
+    <script>
+        // Date helpers for Monday/Sunday alignment of weekly columns
+        function getMonday(d) {
+            d = new Date(d);
+            var day = d.getDay(),
+                diff = d.getDate() - day + (day == 0 ? -6 : 1);
+            return new Date(d.setDate(diff));
+        }
+
+        function getSunday(d) {
+            d = new Date(d);
+            var day = d.getDay(),
+                diff = d.getDate() + (day == 0 ? 0 : 7 - day);
+            return new Date(d.setDate(diff));
+        }
+
+        function projectApp() {
+            return {
+                darkMode: false,
+                tasks: [],
+                milestones: [],
+                teams: {
+                    director: { name: '編導組 (Director)', color: 'violet', badgeColor: 'bg-violet-500', bgClass: 'bg-violet-50/50 dark:bg-violet-950/20', borderClass: 'border-violet-200 dark:border-violet-800' },
+                    server: { name: 'Server組 (Backend)', color: 'indigo', badgeColor: 'bg-indigo-500', bgClass: 'bg-indigo-50/50 dark:bg-indigo-950/20', borderClass: 'border-indigo-200 dark:border-indigo-800' },
+                    client: { name: 'Client組 (Frontend)', color: 'emerald', badgeColor: 'bg-emerald-500', bgClass: 'bg-emerald-50/50 dark:bg-emerald-950/20', borderClass: 'border-emerald-200 dark:border-emerald-800' },
+                    probability: { name: '機率組 (Math/Prob)', color: 'amber', badgeColor: 'bg-amber-500', bgClass: 'bg-amber-50/50 dark:bg-amber-950/20', borderClass: 'border-amber-200 dark:border-amber-800' }
+                },
+                projectStart: new Date(),
+                projectEnd: new Date(),
+                
+                // Filtering state
+                searchQuery: '',
+                filterTeam: 'all',
+                filterStatus: 'all',
+
+                // Modal state
+                showTaskModal: false,
+                modalTitle: '新增任務',
+                currentTask: { id: null, name: '', team: 'director', assignee: '', startDate: '', endDate: '', progress: 0, status: 'Not Started', notes: '' },
+
+                showMilestoneModal: false,
+                currentMilestone: { id: null, name: '', date: '' },
+
+                // Custom Confirm state
+                confirmModal: { show: false, title: '', message: '', onConfirm: () => {} },
+
+                // Alert notification
+                toast: { show: false, message: '', type: 'success' },
+
+                // Initialize App
+                initApp() {
+                    // Dark mode preference sync
+                    if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                        this.darkMode = true;
+                    }
+
+                    // Load from local storage or set defaults
+                    const storedTasks = localStorage.getItem('team3_schedule_tasks');
+                    const storedMilestones = localStorage.getItem('team3_schedule_milestones');
+
+                    if (storedTasks && storedMilestones) {
+                        this.tasks = JSON.parse(storedTasks);
+                        this.milestones = JSON.parse(storedMilestones);
+                    } else {
+                        this.loadDemoData();
+                    }
+
+                    this.updateProjectRange();
+                    
+                    // Fire Lucide icons translation
+                    this.$nextTick(() => { 
+                        if (window.lucide) {
+                            lucide.createIcons(); 
+                        }
+                    });
+                },
+
+                // Reset back to initial mockup data custom tailored for Director, Server, Client, Probability
+                loadDemoData() {
+                    this.tasks = [
+                        // Director (編導)
+                        { id: 1, name: '主遊戲核心玩法與腳本企劃案定稿', team: 'director', assignee: '編導小明', startDate: '2026-06-01', endDate: '2026-06-08', progress: 100, status: 'Completed', notes: '主題、故事線、演出氛圍及特效規格書已定案。' },
+                        { id: 2, name: '主UI視覺稿及骨骼動畫動態分鏡審查', team: 'director', assignee: '編導小明', startDate: '2026-06-07', endDate: '2026-06-18', progress: 80, status: 'In Progress', notes: '與美術完成第一波 UI 互動調教討論。' },
+                        { id: 3, name: '大賞（Grand Win）華麗特效分鏡與音效規格書', team: 'director', assignee: '編導小華', startDate: '2026-06-16', endDate: '2026-06-28', progress: 20, status: 'In Progress', notes: '提供聲效規格與視覺粒子強度規劃。' },
+
+                        // Server
+                        { id: 4, name: '核心遊戲邏輯架構與 API 接口設計', team: 'server', assignee: 'Server志明', startDate: '2026-06-05', endDate: '2026-06-19', progress: 100, status: 'Completed', notes: '防作弊機制與核心 WebSocket 協議文件已發布。' },
+                        { id: 5, name: '機率模型對接開發與百萬次數值跑分', team: 'server', assignee: 'Server小美', startDate: '2026-06-16', endDate: '2026-07-02', progress: 60, status: 'In Progress', notes: '承接機率組之數學模型，於後端進行大數據壓測跑分。' },
+                        { id: 6, name: '玩家狀態持久化與高併發連線載入優化', team: 'server', assignee: 'Server志明', startDate: '2026-06-28', endDate: '2026-07-15', progress: 0, status: 'Not Started', notes: '預備在核心邏輯穩健後實施 Cache 層部署。' },
+
+                        // Client
+                        { id: 7, name: '主場景 UI 響應式切圖與版面組裝', team: 'client', assignee: 'Client春嬌', startDate: '2026-06-05', endDate: '2026-06-16', progress: 100, status: 'Completed', notes: '全解析度、骨骼動畫與預載入管理器配置完畢。' },
+                        { id: 8, name: '動態輪盤滾動物理模擬與特效對接', team: 'client', assignee: 'Client小傑', startDate: '2026-06-15', endDate: '2026-06-29', progress: 75, status: 'In Progress', notes: '完成漸進式速度曲線調校與快顯視窗串接。' },
+                        { id: 9, name: '後端 WebSocket 通訊封包模組與狀態機整合', team: 'client', assignee: 'Client春嬌', startDate: '2026-06-24', endDate: '2026-07-12', progress: 15, status: 'In Progress', notes: '正在等 Server 完成第二階段測試鏈對接。' },
+
+                        // Probability (機率)
+                        { id: 10, name: '核心數學機率模型設計與首版 RTP 試算', team: 'probability', assignee: '機率阿里', startDate: '2026-06-01', endDate: '2026-06-12', progress: 100, status: 'Completed', notes: '基礎 RTP 設定為 96.5%，基本賠付表建立。' },
+                        { id: 11, name: '波動度（Volatility）分析與 Free Game 機率計算', team: 'probability', assignee: '機率阿里', startDate: '2026-06-12', endDate: '2026-06-26', progress: 80, status: 'In Progress', notes: '針對紅利遊戲高倍率頻率進行微調。' },
+                        { id: 12, name: '大數據千萬次模擬運行、驗收與波動表產出', team: 'probability', assignee: '機率婷婷', startDate: '2026-06-22', endDate: '2026-07-08', progress: 10, status: 'In Progress', notes: '生成數學驗收標準白皮書，預備提交 GLI 檢驗。' }
+                    ];
+
+                    this.milestones = [
+                        { id: 1, name: '腳本與基本機率模型定案', date: '2026-06-08' },
+                        { id: 2, name: '滾動對接與百萬次模擬完成', date: '2026-06-26' },
+                        { id: 3, name: '前後端完全對接暨大壓測完成', date: '2026-07-12' }
+                    ];
+                },
+
+                // Handle theme toggle
+                toggleDarkMode() {
+                    this.darkMode = !this.darkMode;
+                    localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
+                },
+
+                // Dynamic project range helper (Align with Monday and Sunday padding)
+                updateProjectRange() {
+                    if (this.tasks.length === 0) {
+                        this.projectStart = getMonday(new Date());
+                        this.projectEnd = getSunday(new Date(this.projectStart.getTime() + 55 * 24 * 60 * 60 * 1000));
+                        return;
+                    }
+
+                    let min = new Date(this.tasks[0].startDate);
+                    let max = new Date(this.tasks[0].endDate);
+
+                    this.tasks.forEach(t => {
+                        let s = new Date(t.startDate);
+                        let e = new Date(t.endDate);
+                        if (s < min) min = s;
+                        if (e > max) max = e;
+                    });
+
+                    // Pad nicely
+                    this.projectStart = getMonday(min);
+                    this.projectEnd = getSunday(max);
+
+                    // Min 4 weeks pad
+                    let diffDays = Math.ceil((this.projectEnd - this.projectStart) / (24 * 60 * 60 * 1000));
+                    if (diffDays < 28) {
+                        this.projectEnd = new Date(this.projectStart.getTime() + 27 * 24 * 60 * 60 * 1000);
+                    }
+                },
+
+                // Save data helper
+                saveDataLocally() {
+                    localStorage.setItem('team3_schedule_tasks', JSON.stringify(this.tasks));
+                    localStorage.setItem('team3_schedule_milestones', JSON.stringify(this.milestones));
+                    this.updateProjectRange();
+                    this.$nextTick(() => { 
+                        if(window.lucide) lucide.createIcons(); 
+                    });
+                },
+
+                // Custom Confirm Dialog Trigger
+                triggerConfirm(title, message, onConfirmCallback) {
+                    this.confirmModal.title = title;
+                    this.confirmModal.message = message;
+                    this.confirmModal.onConfirm = onConfirmCallback;
+                    this.confirmModal.show = true;
+                    this.$nextTick(() => { 
+                        if(window.lucide) lucide.createIcons(); 
+                    });
+                },
+
+                // Trigger Reset with Custom Confirm Modal
+                confirmReset() {
+                    this.triggerConfirm(
+                        '還原預設範例', 
+                        '您確定要還原成三隊的預設排程數據嗎？這將會覆蓋您目前在瀏覽器中所有的修改與進度。', 
+                        () => {
+                            this.loadDemoData();
+                            this.saveDataLocally();
+                            this.showToast('已恢復三隊專案預設排程！', 'success');
+                        }
+                    );
+                },
+
+                // --- EXCEL EXPORT ---
+                exportToExcel() {
+                    try {
+                        if (typeof XLSX === 'undefined') {
+                            this.showToast('Excel 工具庫尚未載入完成，請稍後再試！', 'error');
+                            return;
+                        }
+
+                        // Ensure we have data
+                        if (!this.tasks || !Array.isArray(this.tasks)) {
+                            this.showToast('沒有可匯出的任務資料！', 'error');
+                            return;
+                        }
+
+                        // 1. Map Tasks to Friendly Chinese Headers for Excel Editing
+                        const tasksForExcel = this.tasks.map(t => ({
+                            '任務ID': t.id,
+                            '任務名稱': t.name || '',
+                            '執行組別': this.getTeamChineseName(t.team),
+                            '負責人': t.assignee || '',
+                            '開始日期': t.startDate || '',
+                            '結束日期': t.endDate || '',
+                            '完成進度(%)': t.progress || 0,
+                            '任務狀態': this.getStatusLabel(t.status),
+                            '備註說明': t.notes || ''
+                        }));
+
+                        // 2. Map Milestones to Friendly Chinese Headers
+                        const milestonesForExcel = (this.milestones || []).map(m => ({
+                            '里程碑ID': m.id,
+                            '里程碑名稱': m.name || '',
+                            '達成日期': m.date || ''
+                        }));
+
+                        // 3. Create Workbook and add Sheets
+                        const wb = XLSX.utils.book_new();
+                        
+                        const wsTasks = XLSX.utils.json_to_sheet(tasksForExcel);
+                        
+                        // Set Column widths
+                        wsTasks['!cols'] = [
+                            { wch: 15 }, // ID
+                            { wch: 40 }, // Name
+                            { wch: 20 }, // Team
+                            { wch: 15 }, // Assignee
+                            { wch: 15 }, // Start
+                            { wch: 15 }, // End
+                            { wch: 15 }, // Progress
+                            { wch: 15 }, // Status
+                            { wch: 40 }  // Notes
+                        ];
+                        
+                        XLSX.utils.book_append_sheet(wb, wsTasks, '任務列表');
+
+                        // Only add Milestone sheet if there is data
+                        if (milestonesForExcel.length > 0) {
+                            const wsMilestones = XLSX.utils.json_to_sheet(milestonesForExcel);
+                            wsMilestones['!cols'] = [
+                                { wch: 15 }, // ID
+                                { wch: 30 }, // Name
+                                { wch: 15 }  // Date
+                            ];
+                            XLSX.utils.book_append_sheet(wb, wsMilestones, '專案里程碑');
+                        }
+
+                        // Generate file name with current date
+                        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                        const fileName = `三隊進度排程資料_${dateStr}.xlsx`;
+
+                        // Write and download the file
+                        XLSX.writeFile(wb, fileName);
+                        
+                        this.showToast('Excel 檔案匯出成功！', 'success');
+                    } catch (err) {
+                        console.error("Excel Export Error: ", err);
+                        this.showToast('匯出 Excel 失敗，請重試！', 'error');
+                    }
+                },
+
+                // --- EXCEL IMPORT ---
+                importFromExcel(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+
+                    if (typeof XLSX === 'undefined') {
+                        this.showToast('Excel 工具庫尚未載入完成，請稍後再試！', 'error');
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const wb = XLSX.read(data, { type: 'array', cellDates: true, cellNF: false, cellText: false });
+                            
+                            let importedTasks = [];
+                            let importedMilestones = [];
+
+                            if (wb.SheetNames.includes('任務列表')) {
+                                const wsTasks = wb.Sheets['任務列表'];
+                                const rawTasks = XLSX.utils.sheet_to_json(wsTasks);
+                                
+                                importedTasks = rawTasks.map((row, index) => {
+                                    const rawTeam = row['執行組別'] || '';
+                                    const parsedTeam = this.mapChineseTeamToId(rawTeam);
+                                    
+                                    const rawStatus = row['任務狀態'] || '';
+                                    const parsedStatus = this.mapChineseStatusToId(rawStatus);
+
+                                    const progressVal = parseInt(row['完成進度(%)'] !== undefined ? row['完成進度(%)'] : row['完成進度'] || 0);
+
+                                    return {
+                                        id: row['任務ID'] ? parseInt(row['任務ID']) : (Date.now() + index),
+                                        name: row['任務名稱'] || '未命名任務',
+                                        team: parsedTeam,
+                                        assignee: row['負責人'] || '未指定',
+                                        startDate: this.excelDateToString(row['開始日期']),
+                                        endDate: this.excelDateToString(row['結束日期']),
+                                        progress: isNaN(progressVal) ? 0 : Math.min(100, Math.max(0, progressVal)),
+                                        status: parsedStatus,
+                                        notes: row['備註說明'] || ''
+                                    };
+                                });
+                            }
+
+                            if (wb.SheetNames.includes('專案里程碑')) {
+                                const wsMilestones = wb.Sheets['專案里程碑'];
+                                const rawMilestones = XLSX.utils.sheet_to_json(wsMilestones);
+
+                                importedMilestones = rawMilestones.map((row, index) => {
+                                    return {
+                                        id: row['里程碑ID'] ? parseInt(row['里程碑ID']) : (Date.now() + 1000 + index),
+                                        name: row['里程碑名稱'] || '未命名里程碑',
+                                        date: this.excelDateToString(row['達成日期'])
+                                    };
+                                });
+                            }
+
+                            if (importedTasks.length === 0 && importedMilestones.length === 0) {
+                                this.showToast('匯入失敗：未在 Excel 檔案中找到任何有效數據！', 'error');
+                                return;
+                            }
+
+                            if (importedTasks.length > 0) this.tasks = importedTasks;
+                            if (importedMilestones.length > 0) this.milestones = importedMilestones;
+
+                            this.saveDataLocally();
+                            this.showToast('Excel 資料成功匯入並更新！', 'success');
+
+                        } catch (err) {
+                            console.error(err);
+                            this.showToast('匯入失敗：不支援的試算表格式或檔案已損毀！', 'error');
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
+                    event.target.value = '';
+                },
+
+                excelDateToString(val) {
+                    if (!val) return this.formatDateFull(new Date());
+                    
+                    if (val instanceof Date) {
+                        const tzOffset = val.getTimezoneOffset() * 60000; 
+                        const adjustedDate = new Date(val.getTime() - tzOffset);
+                        return adjustedDate.toISOString().split('T')[0];
+                    }
+                    
+                    if (typeof val === 'number') {
+                        const date = new Date((val - 25569) * 86400 * 1000);
+                        return date.toISOString().split('T')[0];
+                    }
+                    
+                    if (typeof val === 'string') {
+                        const trimmed = val.trim();
+                        const d = new Date(trimmed);
+                        if (!isNaN(d.getTime())) {
+                            return d.toISOString().split('T')[0];
+                        }
+                        return trimmed;
+                    }
+                    
+                    return this.formatDateFull(new Date());
+                },
+
+                getTeamChineseName(teamId) {
+                    const names = {
+                        director: '編導組 (Director)',
+                        server: 'Server組 (Backend)',
+                        client: 'Client組 (Frontend)',
+                        probability: '機率組 (Math/Prob)'
+                    };
+                    return names[teamId] || '編導組 (Director)';
+                },
+
+                mapChineseTeamToId(val) {
+                    if (!val) return 'director';
+                    const s = val.toString().toLowerCase().trim();
+                    if (s.includes('director') || s.includes('編導') || s.includes('編')) return 'director';
+                    if (s.includes('server') || s.includes('backend') || s.includes('後端') || s.includes('后端')) return 'server';
+                    if (s.includes('client') || s.includes('frontend') || s.includes('前端') || s.includes('客')) return 'client';
+                    if (s.includes('probability') || s.includes('math') || s.includes('prob') || s.includes('機率') || s.includes('数') || s.includes('數')) return 'probability';
+                    return 'director';
+                },
+
+                mapChineseStatusToId(val) {
+                    if (!val) return 'Not Started';
+                    const s = val.toString().toLowerCase().trim();
+                    if (s.includes('not started') || s.includes('未') || s.includes('等')) return 'Not Started';
+                    if (s.includes('in progress') || s.includes('進') || s.includes('做')) return 'In Progress';
+                    if (s.includes('completed') || s.includes('已完成') || s.includes('完') || s.includes('定')) return 'Completed';
+                    if (s.includes('delayed') || s.includes('延') || s.includes('卡')) return 'Delayed';
+                    return 'Not Started';
+                },
+
+                showToast(msg, type = 'success') {
+                    this.toast.message = msg;
+                    this.toast.type = type;
+                    this.toast.show = true;
+                    this.$nextTick(() => { 
+                        if(window.lucide) lucide.createIcons(); 
+                    });
+                    setTimeout(() => { this.toast.show = false; }, 3000);
+                },
+
+                getWeeks() {
+                    let weeks = [];
+                    let current = new Date(this.projectStart);
+                    while (current <= this.projectEnd) {
+                        weeks.push({
+                            label: `W${weeks.length + 1}`,
+                            dateStr: `${current.getMonth() + 1}/${current.getDate()}`
+                        });
+                        current.setDate(current.getDate() + 7);
+                    }
+                    return weeks;
+                },
+
+                get filteredTasks() {
+                    return this.tasks.filter(task => {
+                        const matchesSearch = task.name.toLowerCase().includes(this.searchQuery.toLowerCase()) || 
+                                              task.assignee.toLowerCase().includes(this.searchQuery.toLowerCase());
+                        const matchesTeam = this.filterTeam === 'all' || task.team === this.filterTeam;
+                        const matchesStatus = this.filterStatus === 'all' || task.status === this.filterStatus;
+                        return matchesSearch && matchesTeam && matchesStatus;
+                    }).sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+                },
+
+                getTasksOfTeam(teamId) {
+                    return this.tasks.filter(task => {
+                        const matchesSearch = task.name.toLowerCase().includes(this.searchQuery.toLowerCase()) || 
+                                              task.assignee.toLowerCase().includes(this.searchQuery.toLowerCase());
+                        const matchesStatus = this.filterStatus === 'all' || task.status === this.filterStatus;
+                        return task.team === teamId && matchesSearch && matchesStatus;
+                    }).sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+                },
+
+                getTasksCountForTeam(teamId) {
+                    return this.tasks.filter(t => t.team === teamId).length;
+                },
+
+                calculateTotalProgress() {
+                    if (this.tasks.length === 0) return 0;
+                    const sum = this.tasks.reduce((acc, t) => acc + parseInt(t.progress), 0);
+                    return Math.round(sum / this.tasks.length);
+                },
+
+                getCompletedRatio() {
+                    const completed = this.tasks.filter(t => t.status === 'Completed').length;
+                    return `${completed} / ${this.tasks.length}`;
+                },
+
+                getCompletedPercentage() {
+                    if (this.tasks.length === 0) return 0;
+                    const completed = this.tasks.filter(t => t.status === 'Completed').length;
+                    return Math.round((completed / this.tasks.length) * 100);
+                },
+
+                getDelayedCount() {
+                    return this.tasks.filter(t => t.status === 'Delayed').length;
+                },
+
+                getRemainingDays() {
+                    const today = new Date();
+                    const end = new Date(this.projectEnd);
+                    if (today > end) return 0;
+                    const diffMs = end - today;
+                    return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                },
+
+                isTodayInProjectRange() {
+                    const today = new Date();
+                    return today >= this.projectStart && today <= this.projectEnd;
+                },
+
+                getTodayPercentOffset() {
+                    const today = new Date();
+                    const totalMs = this.projectEnd.getTime() - this.projectStart.getTime();
+                    const todayMs = today.getTime() - this.projectStart.getTime();
+                    return ((todayMs / totalMs) * 100).toFixed(2);
+                },
+
+                isDateInProjectRange(dateStr) {
+                    const d = new Date(dateStr);
+                    return d >= this.projectStart && d <= this.projectEnd;
+                },
+
+                getDatePercentOffset(dateStr) {
+                    const d = new Date(dateStr);
+                    const totalMs = this.projectEnd.getTime() - this.projectStart.getTime();
+                    const offsetMs = d.getTime() - this.projectStart.getTime();
+                    return ((offsetMs / totalMs) * 100).toFixed(2);
+                },
+
+                getGanttBarStyle(task) {
+                    const start = new Date(task.startDate);
+                    const end = new Date(task.endDate);
+                    const pStart = this.projectStart;
+                    const pEnd = this.projectEnd;
+
+                    const totalMs = pEnd.getTime() - pStart.getTime();
+                    let leftMs = start.getTime() - pStart.getTime();
+                    let durationMs = end.getTime() - start.getTime() + (24 * 60 * 60 * 1000);
+
+                    if (leftMs < 0) {
+                        durationMs += leftMs;
+                        leftMs = 0;
+                    }
+                    if (leftMs + durationMs > totalMs) {
+                        durationMs = totalMs - leftMs;
+                    }
+
+                    const leftPercent = (leftMs / totalMs) * 100;
+                    const widthPercent = (durationMs / totalMs) * 100;
+
+                    return `left: ${leftPercent}%; width: ${widthPercent}%;`;
+                },
+
+                getGanttBarTheme(teamId) {
+                    const themes = {
+                        director: 'bg-violet-50 dark:bg-violet-950/40 border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-300',
+                        server: 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300',
+                        client: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300',
+                        probability: 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'
+                    };
+                    return themes[teamId] || themes.director;
+                },
+
+                getStatusBadgeClass(status) {
+                    const classes = {
+                        'Not Started': 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+                        'In Progress': 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
+                        'Completed': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
+                        'Delayed': 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300'
+                    };
+                    return classes[status] || classes['Not Started'];
+                },
+
+                getStatusLabel(status) {
+                    const labels = {
+                        'Not Started': '未開始',
+                        'In Progress': '進行中',
+                        'Completed': '已完成',
+                        'Delayed': '已延誤'
+                    };
+                    return labels[status] || '未開始';
+                },
+
+                getTeamAverageProgress(teamId) {
+                    const teamTasks = this.tasks.filter(t => t.team === teamId);
+                    if (teamTasks.length === 0) return 0;
+                    const sum = teamTasks.reduce((acc, t) => acc + parseInt(t.progress), 0);
+                    return Math.round(sum / teamTasks.length);
+                },
+
+                getTeamTotalDays(teamId) {
+                    const teamTasks = this.tasks.filter(t => t.team === teamId);
+                    return teamTasks.reduce((acc, t) => acc + this.getDaysBetween(t.startDate, t.endDate), 0);
+                },
+
+                getDaysBetween(start, end) {
+                    const s = new Date(start);
+                    const e = new Date(end);
+                    const diff = e - s;
+                    return Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1;
+                },
+
+                formatDateShort(d) {
+                    const date = new Date(d);
+                    return `${date.getMonth() + 1}/${date.getDate()}`;
+                },
+
+                formatDateFull(d) {
+                    const date = new Date(d);
+                    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                },
+
+                openTaskModal(task = null) {
+                    if (task) {
+                        this.currentTask = JSON.parse(JSON.stringify(task));
+                        this.modalTitle = '編輯排程任務';
+                    } else {
+                        const today = new Date();
+                        const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+                        this.currentTask = {
+                            id: null,
+                            name: '',
+                            team: this.filterTeam !== 'all' ? this.filterTeam : 'director',
+                            assignee: '',
+                            startDate: this.formatDateFull(today),
+                            endDate: this.formatDateFull(nextWeek),
+                            progress: 0,
+                            status: 'Not Started',
+                            notes: ''
+                        };
+                        this.modalTitle = '新增排程任務';
+                    }
+                    this.showTaskModal = true;
+                    this.$nextTick(() => { 
+                        if(window.lucide) lucide.createIcons(); 
+                    });
+                },
+
+                openTaskModalForTeam(teamId) {
+                    this.openTaskModal();
+                    this.currentTask.team = teamId;
+                },
+
+                saveTask() {
+                    const start = new Date(this.currentTask.startDate);
+                    const end = new Date(this.currentTask.endDate);
+                    
+                    if (start > end) {
+                        this.showToast('錯誤：開始日期不能晚於結束日期！', 'error');
+                        return;
+                    }
+
+                    if (parseInt(this.currentTask.progress) === 100) {
+                        this.currentTask.status = 'Completed';
+                    } else if (parseInt(this.currentTask.progress) > 0 && this.currentTask.status === 'Not Started') {
+                        this.currentTask.status = 'In Progress';
+                    } else if (parseInt(this.currentTask.progress) === 0 && this.currentTask.status === 'Completed') {
+                        this.currentTask.progress = 100;
+                    }
+
+                    if (this.currentTask.id) {
+                        const index = this.tasks.findIndex(t => t.id === this.currentTask.id);
+                        if (index !== -1) {
+                            this.tasks[index] = JSON.parse(JSON.stringify(this.currentTask));
+                        }
+                        this.showToast('排程修改成功！', 'success');
+                    } else {
+                        this.currentTask.id = Date.now();
+                        this.tasks.push(JSON.parse(JSON.stringify(this.currentTask)));
+                        this.showToast('排程任務建立成功！', 'success');
+                    }
+
+                    this.showTaskModal = false;
+                    this.saveDataLocally();
+                },
+
+                confirmDeleteTask(id) {
+                    const taskToDelete = this.tasks.find(t => t.id === id);
+                    const taskName = taskToDelete ? `「${taskToDelete.name}」` : '此任務';
+                    this.triggerConfirm(
+                        '刪除排程任務', 
+                        `您確定要刪除 ${taskName} 嗎？此刪除動作在本地儲存中不可逆。`, 
+                        () => {
+                            this.tasks = this.tasks.filter(t => t.id !== id);
+                            this.saveDataLocally();
+                            this.showToast('任務已成功刪除！', 'success');
+                        }
+                    );
+                },
+
+                openMilestoneModal() {
+                    const today = new Date();
+                    this.currentMilestone = { id: null, name: '', date: this.formatDateFull(today) };
+                    this.showMilestoneModal = true;
+                    this.$nextTick(() => { 
+                        if(window.lucide) lucide.createIcons(); 
+                    });
+                },
+
+                saveMilestone() {
+                    this.currentMilestone.id = Date.now();
+                    this.milestones.push(JSON.parse(JSON.stringify(this.currentMilestone)));
+                    this.showMilestoneModal = false;
+                    this.saveDataLocally();
+                    this.showToast('新增專案里程碑成功！', 'success');
+                },
+
+                confirmDeleteMilestone(id) {
+                    const msToDelete = this.milestones.find(m => m.id === id);
+                    const msName = msToDelete ? `「${msToDelete.name}」` : '此里程碑';
+                    this.triggerConfirm(
+                        '刪除里程碑', 
+                        `確定要刪除 ${msName} 里程碑嗎？這將會同步從甘特圖中撤除。`, 
+                        () => {
+                            this.milestones = this.milestones.filter(m => m.id !== id);
+                            this.saveDataLocally();
+                            this.showToast('里程碑已成功移除！', 'success');
+                        }
+                    );
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen transition-colors duration-200" x-data="projectApp()" x-init="initApp()">
+
+    <!-- App Wrapper with Dark/Light Mode container -->
+    <div :class="darkMode ? 'dark' : ''">
+        <div class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen relative">
+            
+            <!-- Top Navigation Header -->
+            <header class="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-40 shadow-sm">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="p-2 bg-indigo-600 rounded-lg text-white flex-shrink-0">
+                            <i data-lucide="calendar-days" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-lg md:text-xl font-bold tracking-tight bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-400 bg-clip-text text-transparent truncate max-w-[200px] md:max-w-full">
+                                三隊進度排程系統
+                            </h1>
+                            <p class="text-[10px] text-slate-400 uppercase tracking-widest font-semibold dark:text-slate-500 hidden md:block">
+                                Team 3 Master Schedule & Excel Flow Control
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-2 md:space-x-3">
+                        <!-- Reset to Demo Data -->
+                        <button @click="confirmReset()" class="hidden lg:flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-semibold rounded-lg transition" title="還原至三隊預設數據">
+                            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                            <span>重設範例</span>
+                        </button>
+                        
+                        <!-- Import/Export Buttons via Excel -->
+                        <div class="flex items-center border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden text-xs shadow-sm">
+                            <button @click="exportToExcel()" class="px-2 md:px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center space-x-1 transition" title="匯出為 Excel 檔案 (.xlsx)">
+                                <i data-lucide="download" class="w-3.5 h-3.5"></i> <span class="hidden sm:inline">匯出 Excel</span>
+                            </button>
+                            <label class="px-2 md:px-3 py-1.5 bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 border-l border-slate-200 dark:border-slate-800 cursor-pointer flex items-center space-x-1 transition" title="匯入 Excel 檔案 (.xlsx, .xls)">
+                                <i data-lucide="upload" class="w-3.5 h-3.5"></i> <span class="hidden sm:inline">匯入 Excel</span>
+                                <input type="file" @change="importFromExcel($event)" class="hidden" accept=".xlsx, .xls">
+                            </label>
+                        </div>
+
+                        <!-- Dark Mode Toggle -->
+                        <button @click="toggleDarkMode()" class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition flex-shrink-0">
+                            <i x-show="!darkMode" data-lucide="moon" class="w-5 h-5"></i>
+                            <i x-show="darkMode" data-lucide="sun" class="w-5 h-5" x-cloak></i>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 space-y-6 md:space-y-8">
+                
+                <!-- 1. Insights & KPI Stats Dashboard -->
+                <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                    <!-- Progress Card -->
+                    <div class="bg-white dark:bg-slate-900 p-4 md:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider">三隊總工期進度</p>
+                                <h3 class="text-2xl md:text-3xl font-extrabold mt-1 text-indigo-600 dark:text-indigo-400" x-text="calculateTotalProgress() + '%'"></h3>
+                            </div>
+                            <div class="p-2 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-xl hidden sm:block">
+                                <i data-lucide="activity" class="w-5 h-5"></i>
+                            </div>
+                        </div>
+                        <div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 md:h-2 rounded-full mt-3 md:mt-4 overflow-hidden">
+                            <div class="bg-indigo-600 dark:bg-indigo-500 h-full rounded-full transition-all duration-500" :style="'width: ' + calculateTotalProgress() + '%'"></div>
+                        </div>
+                    </div>
+
+                    <!-- Tasks count Card -->
+                    <div class="bg-white dark:bg-slate-900 p-4 md:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider">任務完成率</p>
+                                <h3 class="text-2xl md:text-3xl font-extrabold mt-1 text-emerald-600 dark:text-emerald-400" x-text="getCompletedRatio()"></h3>
+                            </div>
+                            <div class="p-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-xl hidden sm:block">
+                                <i data-lucide="check-circle" class="w-5 h-5"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3 md:mt-4 flex items-center text-[10px] md:text-xs text-slate-500 dark:text-slate-400">
+                            <span class="font-semibold text-emerald-600 dark:text-emerald-400" x-text="getCompletedPercentage() + '%'"></span>
+                            <span class="ml-1 md:ml-1.5">的核心項目已完工</span>
+                        </div>
+                    </div>
+
+                    <!-- Delayed Warning Card -->
+                    <div class="bg-white dark:bg-slate-900 p-4 md:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider">進度落後警示</p>
+                                <h3 class="text-2xl md:text-3xl font-extrabold mt-1" :class="getDelayedCount() > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400 dark:text-slate-500'" x-text="getDelayedCount() + ' 項'"></h3>
+                            </div>
+                            <div class="p-2 rounded-xl hidden sm:block" :class="getDelayedCount() > 0 ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400' : 'bg-slate-50 dark:bg-slate-800/60 text-slate-400'">
+                                <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3 md:mt-4 flex items-center text-[10px] md:text-xs text-slate-500 dark:text-slate-400">
+                            <span class="font-semibold" :class="getDelayedCount() > 0 ? 'text-rose-600 dark:text-rose-400' : ''" x-text="getDelayedCount() > 0 ? '有項目阻礙，需協調' : '所有線路皆在掌控中'"></span>
+                        </div>
+                    </div>
+
+                    <!-- Remaining Days Card -->
+                    <div class="bg-white dark:bg-slate-900 p-4 md:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-[10px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider">專案賸餘工期</p>
+                                <h3 class="text-2xl md:text-3xl font-extrabold mt-1 text-amber-600 dark:text-amber-400" x-text="getRemainingDays() + ' 天'"></h3>
+                            </div>
+                            <div class="p-2 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-xl hidden sm:block">
+                                <i data-lucide="clock" class="w-5 h-5"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3 md:mt-4 text-[10px] md:text-xs text-slate-500 dark:text-slate-400 truncate">
+                            <span class="font-bold text-slate-700 dark:text-slate-300" x-text="formatDateShort(projectStart) + ' ~ ' + formatDateShort(projectEnd)"></span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. Interactive Gantt Chart & Controls -->
+                <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
+                    
+                    <!-- Gantt Filters Header -->
+                    <div class="p-4 md:p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-900/50">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="gantt-chart" class="w-5 h-5 text-indigo-500"></i>
+                            <h2 class="font-bold text-lg">三隊甘特圖排程線</h2>
+                        </div>
+                        
+                        <!-- Search and filter widgets -->
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                            <!-- Search -->
+                            <div class="relative w-full sm:w-auto sm:min-w-[200px]">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                                    <i data-lucide="search" class="w-4 h-4"></i>
+                                </span>
+                                <input type="text" x-model="searchQuery" placeholder="搜尋任務或負責人..." class="w-full pl-9 pr-4 py-2 sm:py-1.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                            </div>
+                            
+                            <div class="flex gap-2 w-full sm:w-auto">
+                                <!-- Team Filter -->
+                                <select x-model="filterTeam" class="flex-1 sm:flex-none text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-2 sm:py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <option value="all">所有組別</option>
+                                    <option value="director">編導組</option>
+                                    <option value="server">Server組</option>
+                                    <option value="client">Client組</option>
+                                    <option value="probability">機率組</option>
+                                </select>
+
+                                <!-- Status Filter -->
+                                <select x-model="filterStatus" class="flex-1 sm:flex-none text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-2 sm:py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <option value="all">所有狀態</option>
+                                    <option value="Not Started">未開始</option>
+                                    <option value="In Progress">進行中</option>
+                                    <option value="Completed">已完成</option>
+                                    <option value="Delayed">已延誤</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gantt Rendering Area (Scrollable) -->
+                    <div class="overflow-x-auto w-full relative">
+                        <div class="min-w-[800px] relative">
+                            
+                            <!-- Timeline Header -->
+                            <div class="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 select-none sticky top-0 z-10">
+                                <div class="w-[30%] md:w-[28%] min-w-[200px] p-3 md:p-4 text-xs md:text-sm font-bold border-r border-slate-200 dark:border-slate-800 sticky left-0 bg-slate-50 dark:bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
+                                    執行團隊與任務
+                                </div>
+                                <div class="w-[70%] md:w-[72%] flex relative">
+                                    <!-- Dynamic Week Markers -->
+                                    <template x-for="(week, index) in getWeeks()" :key="index">
+                                        <div class="flex-1 text-center p-2 border-r border-slate-200 dark:border-slate-800/60 last:border-r-0 min-w-[50px]">
+                                            <div class="text-[10px] md:text-xs font-extrabold text-slate-700 dark:text-slate-300" x-text="week.label"></div>
+                                            <div class="text-[8px] md:text-[10px] text-slate-400 dark:text-slate-500 mt-0.5" x-text="week.dateStr"></div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            
+                            <!-- Gantt Main Grid Row container -->
+                            <div class="divide-y divide-slate-150 dark:divide-slate-800 relative">
+                                
+                                <template x-for="task in filteredTasks" :key="task.id">
+                                    <div class="flex group hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-colors duration-150 items-center min-h-[50px] md:min-h-[58px]">
+                                        
+                                        <!-- Sticky Left Pane: Task Summary -->
+                                        <div class="w-[30%] md:w-[28%] min-w-[200px] p-2 md:p-3.5 border-r border-slate-200 dark:border-slate-800 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/10 z-10 flex flex-col justify-center shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] dark:shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">
+                                            <div class="flex items-center space-x-2">
+                                                <span class="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full flex-shrink-0" :class="teams[task.team].badgeColor"></span>
+                                                <span class="font-semibold text-xs md:text-sm text-slate-800 dark:text-slate-200 truncate cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400" @click="openTaskModal(task)" x-text="task.name"></span>
+                                            </div>
+                                            <div class="flex justify-between items-center mt-1 pl-4 md:pl-4.5">
+                                                <span class="text-[10px] md:text-xs text-slate-400 dark:text-slate-500 truncate" x-text="'👤 ' + task.assignee"></span>
+                                                <span class="text-[8px] md:text-[10px] font-bold px-1.5 md:px-2 py-0.5 rounded-md flex-shrink-0" :class="getStatusBadgeClass(task.status)" x-text="getStatusLabel(task.status)"></span>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Right Pane: Gantt Bar Track Line -->
+                                        <div class="w-[70%] md:w-[72%] flex relative h-12 md:h-14 items-center">
+                                            
+                                            <!-- Vertical Grid Lines helper -->
+                                            <div class="absolute inset-0 flex pointer-events-none">
+                                                <template x-for="(week, idx) in getWeeks()" :key="idx">
+                                                    <div class="flex-1 border-r border-slate-100 dark:border-slate-800/30 last:border-r-0"></div>
+                                                </template>
+                                            </div>
+                                            
+                                            <!-- Interactive Floating Bar -->
+                                            <div class="absolute h-6 md:h-8 rounded-lg shadow-sm border flex items-center px-1.5 md:px-3 cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.015] select-none"
+                                                 :style="getGanttBarStyle(task)"
+                                                 :class="getGanttBarTheme(task.team)"
+                                                 @click="openTaskModal(task)">
+                                                
+                                                <!-- Dynamic internal completed status fill shading -->
+                                                <div class="absolute top-0 left-0 bottom-0 opacity-[0.12] pointer-events-none rounded-l-lg"
+                                                     :class="teams[task.team].badgeColor"
+                                                     :style="'width: ' + task.progress + '%'"></div>
+                                                
+                                                <!-- Left bar indicator border -->
+                                                <div class="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg" :class="teams[task.team].badgeColor"></div>
+                                                
+                                                <!-- Task Title Label over Gantt Bar -->
+                                                <div class="relative z-10 flex items-center justify-between w-full text-[10px] md:text-xs font-bold truncate">
+                                                    <span class="truncate px-1" x-text="task.name"></span>
+                                                    <span class="opacity-90 px-1 ml-1 text-[8px] md:text-[10px] font-extrabold flex-shrink-0" x-text="task.progress + '%'"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- No items display -->
+                                <template x-if="filteredTasks.length === 0">
+                                    <div class="text-center py-10 md:py-12 bg-white dark:bg-slate-900">
+                                        <i data-lucide="inbox" class="w-8 h-8 md:w-10 md:h-10 mx-auto text-slate-300 dark:text-slate-600 mb-2"></i>
+                                        <p class="text-slate-400 dark:text-slate-500 text-xs md:text-sm">無符合當前篩選條件的任務排程</p>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <!-- Overlays absolute layer inside the dynamic gantt block (aligned to the 72% right block offset) -->
+                            <div class="absolute inset-y-0 left-[30%] md:left-[28%] right-0 pointer-events-none z-20">
+                                <!-- Today Line Indicator -->
+                                <template x-if="isTodayInProjectRange()">
+                                    <div class="absolute top-0 bottom-0 w-[2px] bg-rose-500 shadow-sm z-30" :style="'left: ' + getTodayPercentOffset() + '%'">
+                                        <div class="absolute top-1 -translate-x-1/2 bg-rose-500 text-white text-[8px] md:text-[9px] font-bold px-1.5 py-0.5 rounded shadow whitespace-nowrap">今天</div>
+                                    </div>
+                                </template>
+                                
+                                <!-- Milestone Vertical Markers -->
+                                <template x-for="milestone in milestones" :key="milestone.id">
+                                    <template x-if="isDateInProjectRange(milestone.date)">
+                                        <div class="absolute top-0 bottom-0 w-px border-l-2 border-dashed border-emerald-500/80 z-20" :style="'left: ' + getDatePercentOffset(milestone.date) + '%'">
+                                            <div class="absolute bottom-1 -translate-x-1/2 bg-emerald-600 dark:bg-emerald-500 text-white text-[8px] md:text-[9px] font-semibold px-1.5 md:px-2 py-0.5 rounded-lg shadow-sm flex items-center space-x-1 whitespace-nowrap">
+                                                <span>🚩</span>
+                                                <span x-text="milestone.name"></span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </template>
+                            </div>
+
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. Dynamic Task Lists & Sidebar Split Panel -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+                    
+                    <!-- Main Task Board & Lists (Left 2 Columns) -->
+                    <section class="lg:col-span-2 space-y-4 md:space-y-6">
+                        <div class="flex items-center justify-between">
+                            <h2 class="font-bold text-lg md:text-xl flex items-center space-x-2">
+                                <i data-lucide="list-todo" class="w-5 h-5 text-indigo-500"></i>
+                                <span>排程明細清單</span>
+                            </h2>
+                            <button @click="openTaskModal()" class="flex items-center space-x-1 px-3 md:px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition shadow-sm">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                <span>新增任務</span>
+                            </button>
+                        </div>
+
+                        <!-- Loop Through Four Groups of Team 3 -->
+                        <template x-for="teamId in ['director', 'server', 'client', 'probability']" :key="teamId">
+                            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden"
+                                 x-show="filterTeam === 'all' || filterTeam === teamId">
+                                
+                                <!-- Team Section Banner -->
+                                <div class="px-4 md:px-5 py-3 md:py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center" :class="teams[teamId].bgClass">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full flex-shrink-0" :class="teams[teamId].badgeColor"></span>
+                                        <h3 class="font-bold text-sm md:text-base text-slate-800 dark:text-slate-100" x-text="teams[teamId].name"></h3>
+                                        <span class="text-[10px] md:text-xs px-2 py-0.5 rounded-full bg-white/70 dark:bg-slate-800/80 text-slate-500 font-bold" x-text="getTasksCountForTeam(teamId) + '項'"></span>
+                                    </div>
+                                    <button @click="openTaskModalForTeam(teamId)" class="text-[10px] md:text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center space-x-0.5">
+                                        <i data-lucide="plus" class="w-3 h-3"></i>
+                                        <span class="hidden sm:inline">快速新增</span>
+                                    </button>
+                                </div>
+
+                                <!-- Tasks for team -->
+                                <div class="divide-y divide-slate-150 dark:divide-slate-800">
+                                    <template x-for="task in getTasksOfTeam(teamId)" :key="task.id">
+                                        <div class="p-3 md:p-4 hover:bg-slate-50/40 dark:hover:bg-slate-800/10 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 md:gap-4">
+                                            <!-- Left Info -->
+                                            <div class="space-y-1 flex-1 min-w-0">
+                                                <div class="flex items-center space-x-2">
+                                                    <h4 class="font-bold text-xs md:text-sm text-slate-800 dark:text-slate-100" x-text="task.name"></h4>
+                                                    <span class="text-[8px] md:text-[10px] font-bold px-1.5 py-0.5 rounded-md flex-shrink-0" :class="getStatusBadgeClass(task.status)" x-text="getStatusLabel(task.status)"></span>
+                                                </div>
+                                                <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] md:text-xs text-slate-400 dark:text-slate-500">
+                                                    <span>👤 <strong class="text-slate-600 dark:text-slate-300 font-medium" x-text="task.assignee"></strong></span>
+                                                    <span>📅 <span x-text="formatDateShort(task.startDate)"></span> ~ <span x-text="formatDateShort(task.endDate)"></span></span>
+                                                    <span x-text="'⏱️ ' + getDaysBetween(task.startDate, task.endDate) + '天'"></span>
+                                                </div>
+                                                <p x-show="task.notes" x-text="task.notes" class="text-[10px] md:text-xs text-slate-400 dark:text-slate-500 italic mt-1 truncate pl-2 border-l border-slate-200 dark:border-slate-800"></p>
+                                            </div>
+
+                                            <!-- Progress & Controls -->
+                                            <div class="flex items-center justify-between sm:justify-end space-x-4 md:space-x-6 w-full sm:w-auto">
+                                                <!-- Circular/Linear mini progress slider -->
+                                                <div class="w-full sm:w-24 md:w-28 space-y-1">
+                                                    <div class="flex justify-between text-[8px] md:text-[10px] font-bold text-slate-400">
+                                                        <span>完成進度</span>
+                                                        <span x-text="task.progress + '%'"></span>
+                                                    </div>
+                                                    <div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                                        <div class="h-full rounded-full transition-all duration-300" :class="teams[teamId].badgeColor" :style="'width: ' + task.progress + '%'"></div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Buttons -->
+                                                <div class="flex items-center space-x-1 flex-shrink-0">
+                                                    <button @click="openTaskModal(task)" class="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition" title="編輯任務">
+                                                        <i data-lucide="edit-3" class="w-3.5 h-3.5 md:w-4 md:h-4"></i>
+                                                    </button>
+                                                    <button @click="confirmDeleteTask(task.id)" class="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition" title="刪除任務">
+                                                        <i data-lucide="trash-2" class="w-3.5 h-3.5 md:w-4 md:h-4"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <!-- If team has no tasks -->
+                                    <template x-if="getTasksOfTeam(teamId).length === 0">
+                                        <div class="p-6 md:p-8 text-center text-slate-400 text-xs">
+                                            該小組在此篩選器下無任務。
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </section>
+
+                    <!-- Sidebar Panel (Right Column) -->
+                    <aside class="space-y-4 md:space-y-6">
+                        
+                        <!-- 1. Milestone Manager Panel -->
+                        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-5 space-y-3 md:space-y-4">
+                            <div class="flex justify-between items-center border-b border-slate-150 dark:border-slate-800 pb-2 md:pb-3">
+                                <h3 class="font-bold text-sm md:text-md flex items-center space-x-1.5">
+                                    <span class="text-sm md:text-base">🚩</span>
+                                    <span>關鍵里程碑</span>
+                                </h3>
+                                <button @click="openMilestoneModal()" class="text-[10px] md:text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-bold flex items-center space-x-0.5">
+                                    <i data-lucide="plus" class="w-3 h-3"></i>
+                                    <span>新增里程</span>
+                                </button>
+                            </div>
+
+                            <!-- Milestones timeline list -->
+                            <div class="space-y-3 md:space-y-4 relative pl-3.5 border-l border-slate-200 dark:border-slate-800">
+                                <template x-for="milestone in milestones" :key="milestone.id">
+                                    <div class="relative group">
+                                        <!-- Timeline dot -->
+                                        <span class="absolute -left-[19px] top-1 w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-emerald-500 border border-white dark:border-slate-900"></span>
+                                        
+                                        <div class="flex justify-between items-start">
+                                            <div>
+                                                <h4 class="font-bold text-xs md:text-sm text-slate-800 dark:text-slate-100" x-text="milestone.name"></h4>
+                                                <span class="text-[9px] md:text-[10px] text-slate-400 font-bold" x-text="formatDateFull(milestone.date)"></span>
+                                            </div>
+                                            <button @click="confirmDeleteMilestone(milestone.id)" class="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-500 transition rounded" title="刪除里程碑">
+                                                <i data-lucide="x" class="w-3 md:w-3.5 h-3 md:h-3.5"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- If empty Milestones -->
+                                <template x-if="milestones.length === 0">
+                                    <p class="text-center text-[10px] md:text-xs text-slate-400 py-2">目前無設定里程碑項目</p>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- 2. Team Workload Breakdown -->
+                        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-5 space-y-3 md:space-y-4">
+                            <h3 class="font-bold text-sm md:text-md flex items-center space-x-1.5 border-b border-slate-150 dark:border-slate-800 pb-2 md:pb-3">
+                                <i data-lucide="users" class="w-3.5 h-3.5 md:w-4 md:h-4 text-violet-500"></i>
+                                <span>各組進度與承載量</span>
+                            </h3>
+
+                            <div class="space-y-3 md:space-y-4">
+                                <template x-for="teamId in ['director', 'server', 'client', 'probability']" :key="teamId">
+                                    <div class="space-y-1 md:space-y-1.5">
+                                        <div class="flex justify-between text-[10px] md:text-xs">
+                                            <span class="font-bold text-slate-700 dark:text-slate-300" x-text="teams[teamId].name.split(' ')[0]"></span>
+                                            <span class="text-slate-400 font-medium" x-text="getTeamAverageProgress(teamId) + '% 平均'"></span>
+                                        </div>
+                                        <div class="w-full bg-slate-100 dark:bg-slate-800 h-2 md:h-2.5 rounded-full overflow-hidden flex">
+                                            <div class="h-full rounded-full transition-all duration-300" :class="teams[teamId].badgeColor" :style="'width: ' + getTeamAverageProgress(teamId) + '%'"></div>
+                                        </div>
+                                        <div class="flex justify-between text-[9px] md:text-[10px] text-slate-400">
+                                            <span x-text="getTasksCountForTeam(teamId) + ' 項任務'"></span>
+                                            <span x-text="getTeamTotalDays(teamId) + ' 預估人天'"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+
+            </main>
+
+            <!-- 4. Interactive Task Edit/Add Modal Overlay -->
+            <div x-show="showTaskModal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" x-cloak x-transition.opacity>
+                <div @click.away="showTaskModal = false" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-lg rounded-2xl shadow-xl overflow-hidden transform transition-all" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100">
+                    
+                    <!-- Modal Header -->
+                    <div class="px-5 py-3 md:px-6 md:py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 flex justify-between items-center">
+                        <h3 class="font-bold text-base md:text-lg text-slate-800 dark:text-slate-100" x-text="modalTitle"></h3>
+                        <button type="button" @click="showTaskModal = false" class="p-1.5 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition">
+                            <i data-lucide="x" class="w-4 h-4 md:w-5 md:h-5"></i>
+                        </button>
+                    </div>
+
+                    <!-- Modal Form -->
+                    <form @submit.prevent="saveTask()" class="p-4 md:p-6 space-y-3 md:space-y-4">
+                        <!-- Task Name -->
+                        <div class="space-y-1">
+                            <label class="block text-[10px] md:text-xs font-bold text-slate-400 uppercase">任務名稱</label>
+                            <input type="text" x-model="currentTask.name" required placeholder="例如：核心 API 開發" class="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl px-3 md:px-4 py-2 md:py-2.5 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+                            <!-- Team Selection -->
+                            <div class="space-y-1">
+                                <label class="block text-[10px] md:text-xs font-bold text-slate-400 uppercase">執行組別</label>
+                                <select x-model="currentTask.team" class="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl px-2 md:px-3 py-2 md:py-2.5 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <option value="director">編導組 (Director)</option>
+                                    <option value="server">Server組 (Server)</option>
+                                    <option value="client">Client組 (Client)</option>
+                                    <option value="probability">機率組 (Probability)</option>
+                                </select>
+                            </div>
+                            <!-- Assignee -->
+                            <div class="space-y-1">
+                                <label class="block text-[10px] md:text-xs font-bold text-slate-400 uppercase">負責人</label>
+                                <input type="text" x-model="currentTask.assignee" required placeholder="姓名" class="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl px-3 md:px-4 py-2 md:py-2.5 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 md:gap-4">
+                            <!-- Start Date -->
+                            <div class="space-y-1">
+                                <label class="block text-[10px] md:text-xs font-bold text-slate-400 uppercase">開始日期</label>
+                                <input type="date" x-model="currentTask.startDate" required class="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl px-2 md:px-4 py-2 md:py-2.5 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <!-- End Date -->
+                            <div class="space-y-1">
+                                <label class="block text-[10px] md:text-xs font-bold text-slate-400 uppercase">結束日期</label>
+                                <input type="date" x-model="currentTask.endDate" required class="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl px-2 md:px-4 py-2 md:py-2.5 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+                            <!-- Progress Range -->
+                            <div class="space-y-1">
+                                <label class="block text-[10px] md:text-xs font-bold text-slate-400 uppercase flex justify-between">
+                                    <span>完成進度</span>
+                                    <span class="text-indigo-600 dark:text-indigo-400" x-text="currentTask.progress + '%'"></span>
+                                </label>
+                                <div class="flex items-center h-[38px] md:h-[42px] px-1">
+                                     <input type="range" min="0" max="100" step="5" x-model="currentTask.progress" class="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                                </div>
+                            </div>
+                            <!-- Status -->
+                            <div class="space-y-1">
+                                <label class="block text-[10px] md:text-xs font-bold text-slate-400 uppercase">任務狀態</label>
+                                <select x-model="currentTask.status" class="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl px-2 md:px-3 py-2 md:py-2.5 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <option value="Not Started">未開始 (Not Started)</option>
+                                    <option value="In Progress">進行中 (In Progress)</option>
+                                    <option value="Completed">已完成 (Completed)</option>
+                                    <option value="Delayed">已延誤 (Delayed)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="space-y-1">
+                            <label class="block text-[10px] md:text-xs font-bold text-slate-400 uppercase">備註說明</label>
+                            <textarea x-model="currentTask.notes" rows="2" placeholder="備註詳細說明或交付事項..." class="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl px-3 md:px-4 py-2 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                        </div>
+
+                        <!-- Footer actions -->
+                        <div class="flex items-center justify-end space-x-2 pt-3 md:pt-4 border-t border-slate-200 dark:border-slate-800 mt-2">
+                            <button type="button" @click="showTaskModal = false" class="px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs md:text-sm font-semibold rounded-xl transition">
+                                取消
+                            </button>
+                            <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs md:text-sm font-semibold rounded-xl transition shadow-md">
+                                保存排程
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 5. Milestone Add Modal Overlay -->
+            <div x-show="showMilestoneModal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" x-cloak x-transition.opacity>
+                <div @click.away="showMilestoneModal = false" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-sm rounded-2xl shadow-xl overflow-hidden transform transition-all" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100">
+                    
+                    <div class="px-4 py-3 md:px-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-850">
+                        <h3 class="font-bold text-sm md:text-md">新增里程碑項目</h3>
+                        <button type="button" @click="showMilestoneModal = false" class="p-1 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+
+                    <form @submit.prevent="saveMilestone()" class="p-4 md:p-5 space-y-3 md:space-y-4">
+                        <div class="space-y-1">
+                            <label class="block text-[10px] md:text-xs font-bold text-slate-400 uppercase">里程碑名稱</label>
+                            <input type="text" x-model="currentMilestone.name" required placeholder="例如：Beta 內部測試" class="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl px-3 py-2 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+
+                        <div class="space-y-1">
+                            <label class="block text-[10px] md:text-xs font-bold text-slate-400 uppercase">達成日期</label>
+                            <input type="date" x-model="currentMilestone.date" required class="w-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl px-3 py-2 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+
+                        <div class="flex justify-end space-x-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                            <button type="button" @click="showMilestoneModal = false" class="px-3 md:px-4 py-1.5 md:py-2 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[10px] md:text-xs font-bold rounded-lg transition hover:bg-slate-50 dark:hover:bg-slate-800">取消</button>
+                            <button type="submit" class="px-3 md:px-4 py-1.5 md:py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] md:text-xs font-bold rounded-lg transition shadow-md">新增</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 6. Highly Interactive Custom Confirmation Modal -->
+            <div x-show="confirmModal.show" class="fixed inset-0 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center z-[60] p-4" x-cloak x-transition.opacity>
+                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-sm md:max-w-md rounded-2xl shadow-2xl overflow-hidden transform transition-all" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95 translate-y-4" x-transition:enter-end="opacity-100 scale-100 translate-y-0">
+                    <div class="p-5 md:p-6 text-center space-y-3 md:space-y-4">
+                        <div class="mx-auto w-10 h-10 md:w-12 md:h-12 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 rounded-full flex items-center justify-center">
+                            <i data-lucide="alert-circle" class="w-5 h-5 md:w-6 md:h-6"></i>
+                        </div>
+                        <div class="space-y-1.5 md:space-y-2">
+                            <h3 class="font-bold text-base md:text-lg text-slate-900 dark:text-white" x-text="confirmModal.title">確認操作</h3>
+                            <p class="text-xs md:text-sm text-slate-500 dark:text-slate-400 leading-relaxed" x-text="confirmModal.message"></p>
+                        </div>
+                        <div class="flex items-center justify-center space-x-2 md:space-x-3 pt-3 md:pt-4">
+                            <button type="button" @click="confirmModal.show = false" class="px-4 md:px-5 py-1.5 md:py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] md:text-xs font-bold rounded-xl transition">
+                                取消
+                            </button>
+                            <button type="button" @click="confirmModal.onConfirm(); confirmModal.show = false;" class="px-4 md:px-5 py-1.5 md:py-2 bg-rose-600 hover:bg-rose-700 text-white text-[10px] md:text-xs font-bold rounded-xl transition shadow-md">
+                                確認執行
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toast Alert Notification -->
+            <div class="fixed bottom-4 right-4 md:bottom-5 md:right-5 z-[70] transform transition-all duration-300" x-show="toast.show" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+                <div class="px-3 md:px-4 py-2.5 md:py-3 rounded-xl shadow-lg border text-white font-semibold text-xs md:text-sm flex items-center space-x-2"
+                     :class="toast.type === 'success' ? 'bg-emerald-600 border-emerald-500' : 'bg-rose-600 border-rose-500'">
+                    <i :data-lucide="toast.type === 'success' ? 'check-circle' : 'alert-circle'" class="w-3.5 h-3.5 md:w-4 md:h-4"></i>
+                    <span x-text="toast.message"></span>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10 mt-8 md:mt-12 border-t border-slate-200 dark:border-slate-800 text-center text-[10px] md:text-xs text-slate-400">
+                <p>© 2026 三隊進度排程系統. 專為三隊「編導、Server、Client、機率」多軌協同作業量身打造。支援高度自訂 Excel 二次編輯匯入。</p>
+            </footer>
+
+        </div>
+    </div>
+    
+    <!-- ==========================================
+         ALPINE JS SCRIPT INITIALIZATION
+    =========================================== -->
+    <script>
+        document.addEventListener('alpine:initialized', () => {
+             if(window.lucide) { lucide.createIcons(); }
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+</body>
+</html>
