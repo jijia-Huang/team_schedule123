@@ -110,40 +110,47 @@
                     });
                 },
 
-                // Custom Demo Data strictly based on the user's reference image
+                // Custom Demo Data strictly based on the user's latest provided Excel
                 loadDemoData() {
                     this.tasks = [
-                        // W1 Director
+                        // W1 Director (2026-06-01 to 2026-06-05)
                         { id: 101, name: '新版【貂蟬秘曲】道具卡、營運需求', team: 'director', assignee: '企劃', startDate: '2026-06-01', endDate: '2026-06-05', progress: 50, status: 'In Progress', notes: '' },
                         { id: 102, name: '【孫悟空】2D 素材整理', team: 'director', assignee: '企劃', startDate: '2026-06-01', endDate: '2026-06-05', progress: 50, status: 'In Progress', notes: '' },
                         { id: 103, name: '撰寫【孫悟空】程式規格書', team: 'director', assignee: '企劃', startDate: '2026-06-01', endDate: '2026-06-05', progress: 20, status: 'In Progress', notes: '' },
                         { id: 104, name: '4月份 AI 研究報告撰寫', team: 'director', assignee: '企劃', startDate: '2026-06-01', endDate: '2026-06-05', progress: 0, status: 'Not Started', notes: '' },
                         { id: 105, name: '完成【孫悟空】平台美術開單', team: 'director', assignee: '企劃', startDate: '2026-06-01', endDate: '2026-06-05', progress: 100, status: 'Completed', notes: '' },
+                        { id: 106, name: '完成 剿滅董卓 上榜圖標開單', team: 'director', assignee: '企劃', startDate: '2026-06-01', endDate: '2026-06-05', progress: 100, status: 'Completed', notes: '' },
                         
-                        // W2 Director
-                        { id: 106, name: '撰寫【貂蟬秘曲】客服查詢工具規格書', team: 'director', assignee: '企劃', startDate: '2026-06-08', endDate: '2026-06-12', progress: 0, status: 'Not Started', notes: '' },
-                        { id: 107, name: '5月份 AI 研究報告撰寫', team: 'director', assignee: '企劃', startDate: '2026-06-08', endDate: '2026-06-12', progress: 0, status: 'Not Started', notes: '' },
-                        { id: 108, name: '【貂蟬秘曲】顧問試玩 (6/12) 🚀', team: 'director', assignee: '企劃', startDate: '2026-06-12', endDate: '2026-06-12', progress: 100, status: 'Completed', notes: '' },
+                        // W2 Director (2026-06-08 to 2026-06-12)
+                        { id: 107, name: '撰寫【貂蟬秘曲】客服查詢工具規格書', team: 'director', assignee: '企劃', startDate: '2026-06-08', endDate: '2026-06-12', progress: 0, status: 'Not Started', notes: '' },
+                        { id: 108, name: '5月份 AI 研究報告撰寫', team: 'director', assignee: '企劃', startDate: '2026-06-08', endDate: '2026-06-12', progress: 0, status: 'Not Started', notes: '' },
+                        { id: 109, name: '【貂蟬秘曲】顧問試玩 (6/12) 🚀', team: 'director', assignee: '企劃', startDate: '2026-06-12', endDate: '2026-06-12', progress: 100, status: 'Completed', notes: '' },
 
-                        // Server
+                        // Server W1
                         { id: 201, name: '【至尊王牌】不同 Bet 不同輪帶功能、壓測', team: 'server', assignee: '後端', startDate: '2026-06-01', endDate: '2026-06-05', progress: 60, status: 'In Progress', notes: '' },
                         { id: 202, name: '【貂蟬秘曲】C++ 開發 (免遊3調整)', team: 'server', assignee: '後端', startDate: '2026-06-01', endDate: '2026-06-05', progress: 80, status: 'In Progress', notes: '' },
+                        
+                        // Server W2
                         { id: 203, name: '【貂蟬秘曲】C++ 開發 (串接 count 給獎、白名單給獎)', team: 'server', assignee: '後端', startDate: '2026-06-08', endDate: '2026-06-12', progress: 20, status: 'In Progress', notes: '' },
                         { id: 204, name: '【孫悟空】C++ 開發 (完整功能開發)', team: 'server', assignee: '後端', startDate: '2026-06-08', endDate: '2026-06-12', progress: 10, status: 'In Progress', notes: '' },
                         { id: 205, name: '【貂蟬秘曲】顧問試玩 (6/12) 🚀', team: 'server', assignee: '後端', startDate: '2026-06-12', endDate: '2026-06-12', progress: 100, status: 'Completed', notes: '' },
 
-                        // Client
+                        // Client W1
                         { id: 301, name: '【貂蟬秘曲】上線準備 (美術資源更換、Shader)', team: 'client', assignee: '前端', startDate: '2026-06-01', endDate: '2026-06-05', progress: 90, status: 'In Progress', notes: '' },
                         { id: 302, name: '【孫悟空】可進遊戲版 (專案搬移、Spine串接、規格確認)', team: 'client', assignee: '前端', startDate: '2026-06-01', endDate: '2026-06-05', progress: 70, status: 'In Progress', notes: '' },
                         { id: 303, name: '【貂蟬秘曲】完成 (6/5) 🚀', team: 'client', assignee: '前端', startDate: '2026-06-05', endDate: '2026-06-05', progress: 100, status: 'Completed', notes: '' },
+                        
+                        // Client W2
                         { id: 304, name: '【孫悟空】MG 可Spin版本 (MG轉輪實作、Symbol串接)', team: 'client', assignee: '前端', startDate: '2026-06-08', endDate: '2026-06-12', progress: 30, status: 'In Progress', notes: '' },
                         { id: 305, name: '【孫悟空】FG 可Spin版本 (FG轉輪實作)', team: 'client', assignee: '前端', startDate: '2026-06-08', endDate: '2026-06-12', progress: 0, status: 'Not Started', notes: '' },
                         { id: 306, name: '【貂蟬秘曲】顧問試玩 (6/12) 🚀', team: 'client', assignee: '前端', startDate: '2026-06-12', endDate: '2026-06-12', progress: 100, status: 'Completed', notes: '' },
 
-                        // Probability
+                        // Probability W1
                         { id: 401, name: '建立【至尊王牌】逐局數據統整工具', team: 'probability', assignee: '機率', startDate: '2026-06-01', endDate: '2026-06-05', progress: 50, status: 'In Progress', notes: '' },
                         { id: 402, name: '調整【至尊王牌】機率', team: 'probability', assignee: '機率', startDate: '2026-06-01', endDate: '2026-06-05', progress: 40, status: 'In Progress', notes: '' },
                         { id: 403, name: '【貂蟬秘曲】驗證快測工具、建立逐局統整工具', team: 'probability', assignee: '機率', startDate: '2026-06-01', endDate: '2026-06-05', progress: 100, status: 'Completed', notes: '' },
+                        
+                        // Probability W2
                         { id: 404, name: '【貂蟬秘曲】顧問版機率設定', team: 'probability', assignee: '機率', startDate: '2026-06-08', endDate: '2026-06-12', progress: 0, status: 'Not Started', notes: '' },
                         { id: 405, name: '調整【貂蟬秘曲】不同 Bet 不同輪帶', team: 'probability', assignee: '機率', startDate: '2026-06-08', endDate: '2026-06-12', progress: 0, status: 'Not Started', notes: '' },
                         { id: 406, name: '【貂蟬秘曲】顧問試玩 (6/12) 🚀', team: 'probability', assignee: '機率', startDate: '2026-06-12', endDate: '2026-06-12', progress: 100, status: 'Completed', notes: '' }
@@ -375,16 +382,35 @@
                                 });
                             }
 
-                            if (importedTasks.length > 0) {
-                                this.tasks = importedTasks;
-                                this.saveDataLocally();
-                                this.showToast('Excel 資料成功匯入！', 'success');
-                            } else {
-                                this.showToast('未找到有效數據。', 'error');
+                            let importedMilestones = [];
+                            const milestoneSheetName = wb.SheetNames.find(name => name === '里程碑' || name === '專案里程碑');
+                            if (milestoneSheetName) {
+                                const wsMilestones = wb.Sheets[milestoneSheetName];
+                                const rawMilestones = XLSX.utils.sheet_to_json(wsMilestones);
+
+                                importedMilestones = rawMilestones.map((row, index) => {
+                                    return {
+                                        id: row['里程碑ID'] ? parseInt(row['里程碑ID']) : (Date.now() + 1000 + index),
+                                        name: row['里程碑名稱'] || '未命名里程碑',
+                                        date: this.excelDateToString(row['達成日期'])
+                                    };
+                                });
                             }
+
+                            if (importedTasks.length === 0 && importedMilestones.length === 0) {
+                                this.showToast('匯入失敗：未在 Excel 檔案中找到任何有效數據！', 'error');
+                                return;
+                            }
+
+                            if (importedTasks.length > 0) this.tasks = importedTasks;
+                            if (importedMilestones.length > 0) this.milestones = importedMilestones;
+
+                            this.saveDataLocally();
+                            this.showToast('Excel 資料成功匯入並更新！', 'success');
+
                         } catch (err) {
                             console.error(err);
-                            this.showToast('匯入失敗！', 'error');
+                            this.showToast('匯入失敗：不支援的試算表格式或檔案已損毀！', 'error');
                         }
                     };
                     reader.readAsArrayBuffer(file);
@@ -596,7 +622,7 @@
                             <h1 class="text-lg md:text-xl font-extrabold tracking-tight dark:text-white flex items-center space-x-2">
                                 <span>遊戲專案進度排程</span>
                                 <span class="hidden md:inline text-slate-300 dark:text-slate-600">—</span>
-                                <span class="bg-gradient-to-r from-indigo-500 to-pink-500 bg-clip-text text-transparent hidden sm:inline">孫悟空 & 貂蟬</span>
+                                <span class="bg-gradient-to-r from-indigo-500 to-pink-500 bg-clip-text text-transparent hidden sm:inline">3隊</span>
                             </h1>
                             <p class="text-[10px] md:text-xs text-slate-400 font-medium">
                                 <span x-text="formatDateShort(projectStart) + ' - ' + formatDateShort(projectEnd)"></span> 
@@ -648,9 +674,9 @@
                         <p class="text-[11px] text-slate-500 dark:text-slate-400 font-bold mb-1">關鍵里程碑</p>
                         <div class="flex items-end space-x-2">
                             <h3 class="text-xl md:text-2xl font-black text-slate-800 dark:text-white">
-                                <span x-text="milestones.length > 1 ? milestones[1].name : (milestones[0]?.name || '暫無目標')"></span>
+                                <span x-text="milestones.length > 0 ? (milestones.length > 1 ? milestones[1].name : milestones[0].name) : '暫無里程碑'"></span>
                             </h3>
-                            <span class="text-xs text-slate-400 dark:text-slate-500 font-bold mb-1" x-show="milestones.length > 0" x-text="formatDateShort(milestones.length > 1 ? milestones[1].date : milestones[0].date)"></span>
+                            <span class="text-xs text-slate-400 dark:text-slate-500 font-bold mb-1" x-show="milestones.length > 0" x-text="formatDateShort(milestones.length > 1 ? milestones[1].date : (milestones[0] ? milestones[0].date : new Date()))"></span>
                         </div>
                     </div>
 
@@ -889,6 +915,9 @@
                                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                                 </button>
                             </div>
+                        </template>
+                        <template x-if="milestones.length === 0">
+                            <div class="px-5 py-4 text-center text-xs text-slate-500 dark:text-slate-400">目前沒有里程碑</div>
                         </template>
                     </div>
 
