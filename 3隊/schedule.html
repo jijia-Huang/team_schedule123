@@ -60,6 +60,9 @@
                 darkMode: true, // Default to dark mode based on reference image
                 tasks: [],
                 milestones: [],
+                actualTasks: [],
+                activeTab: 'planned', // 'planned' or 'actual'
+                selectedActualWeek: 'W1',
                 teams: {
                     director: { name: '編導', color: 'violet', badgeColor: 'bg-indigo-400', borderClass: 'border-l-[4px] border-l-indigo-400 dark:border-t-slate-700 dark:border-r-slate-700 dark:border-b-slate-700', bgClass: 'bg-indigo-50/50 dark:bg-indigo-950/20' },
                     server: { name: 'Server', color: 'cyan', badgeColor: 'bg-cyan-400', borderClass: 'border-l-[4px] border-l-cyan-400 dark:border-t-slate-700 dark:border-r-slate-700 dark:border-b-slate-700', bgClass: 'bg-cyan-50/50 dark:bg-cyan-950/20' },
@@ -92,6 +95,12 @@
                     } else {
                         this.darkMode = true; // Force dark mode as default for this sleek layout
                     }
+
+                    this.$watch('activeTab', () => {
+                        this.$nextTick(() => {
+                            if (window.lucide) { lucide.createIcons(); }
+                        });
+                    });
 
                     this.loadExcelFromUrl();
                 },
@@ -146,6 +155,43 @@
                         { id: 1, name: '貂蟬秘曲 顧問試玩', date: '2026-06-12' },
                         { id: 2, name: '孫悟空 上線', date: '2026-07-29' }
                     ];
+
+                    this.actualTasks = [
+                        // W1 Actual Tasks (from mockup image)
+                        { id: 1001, week: 'W1', weekDate: '6/02-6/08', team: 'director', name: 'MTG 【極速發發發】驗收', status: 'Completed', linkLabel: '', linkUrl: '' },
+                        { id: 1002, week: 'W1', weekDate: '6/02-6/08', team: 'director', name: '【法老王】二測遊戲 & 道具卡驗證', status: 'Completed', linkLabel: '', linkUrl: '' },
+                        { id: 1003, week: 'W1', weekDate: '6/02-6/08', team: 'director', name: 'VIP 改版對老虎機影響分析', status: 'Completed', linkLabel: '開啟報告', linkUrl: '#' },
+                        { id: 1004, week: 'W1', weekDate: '6/02-6/08', team: 'director', name: '【餘燼之刃】上線首週數據報告', status: 'Completed', linkLabel: '', linkUrl: '' },
+                        { id: 1005, week: 'W1', weekDate: '6/02-6/08', team: 'director', name: '直播區例行性測試 (餘燼、呂布、雷霆2)', status: 'Completed', linkLabel: '', linkUrl: '' },
+                        
+                        { id: 1006, week: 'W1', weekDate: '6/02-6/08', team: 'server', name: '機器人製作 (與雅琦升級過舊的 2008 版機器人)', status: 'Completed', linkLabel: '', linkUrl: '' },
+                        { id: 1007, week: 'W1', weekDate: '6/02-6/08', team: 'server', name: '【法老王】壓測 (含黑名單)', status: 'Completed', linkLabel: '', linkUrl: '' },
+                        { id: 1008, week: 'W1', weekDate: '6/02-6/08', team: 'server', name: 'MTG 【極速發發發】浮點數支援 (已完成，品檢中)', status: 'Completed', linkLabel: '', linkUrl: '' },
+                        { id: 1009, week: 'W1', weekDate: '6/02-6/08', team: 'server', name: 'G2E 出差報告製作 (40%)', status: 'In Progress', linkLabel: '', linkUrl: '' },
+                        { id: 1010, week: 'W1', weekDate: '6/02-6/08', team: 'server', name: '【餘燼之刃】銷售力報告製作 (80%)', status: 'In Progress', linkLabel: '', linkUrl: '' },
+                        
+                        { id: 1011, week: 'W1', weekDate: '6/02-6/08', team: 'client', name: '【餘燼之刃】銷售力報告', status: 'Completed', linkLabel: '', linkUrl: '' },
+                        { id: 1012, week: 'W1', weekDate: '6/02-6/08', team: 'client', name: 'MTG 【極速發發發】品檢', status: 'In Progress', linkLabel: '', linkUrl: '' },
+                        { id: 1013, week: 'W1', weekDate: '6/02-6/08', team: 'client', name: 'MTG 【戰神呂布】驗收中', status: 'In Progress', linkLabel: '', linkUrl: '' },
+                        { id: 1014, week: 'W1', weekDate: '6/02-6/08', team: 'client', name: '【三英無雙】雪代版 3D 人物美術確認', status: 'In Progress', linkLabel: '點擊看影片', linkUrl: '#' },
+                        { id: 1015, week: 'W1', weekDate: '6/02-6/08', team: 'client', name: '部會報告製作中 (30%)', status: 'In Progress', linkLabel: '', linkUrl: '' },
+                        
+                        { id: 1016, week: 'W1', weekDate: '6/02-6/08', team: 'probability', name: 'MTG 【雷霆之槍2】輪帶 96%', status: 'Completed', linkLabel: '', linkUrl: '' },
+                        { id: 1017, week: 'W1', weekDate: '6/02-6/08', team: 'probability', name: '【餘燼之刃】免遊 3 加入監控冊 (含直播)', status: 'Completed', linkLabel: '', linkUrl: '' },
+                        { id: 1018, week: 'W1', weekDate: '6/02-6/08', team: 'probability', name: '撈取 【餘燼之刃】上線數據', status: 'Completed', linkLabel: '', linkUrl: '' },
+                        { id: 1019, week: 'W1', weekDate: '6/02-6/08', team: 'probability', name: '撰寫 【餘燼之刃】機率部分上線週報', status: 'Completed', linkLabel: '', linkUrl: '' },
+                        { id: 1020, week: 'W1', weekDate: '6/02-6/08', team: 'probability', name: '不同 BET 不同輪帶分析 (30%)', status: 'In Progress', linkLabel: '', linkUrl: '' },
+
+                        // W2 Actual Tasks (extra example)
+                        { id: 2001, week: 'W2', weekDate: '6/09-6/15', team: 'director', name: '【三英無雙】新版美術 UI 審查', status: 'Completed', linkLabel: '', linkUrl: '' },
+                        { id: 2002, week: 'W2', weekDate: '6/09-6/15', team: 'director', name: '撰寫【雷霆之錘2】優化規格', status: 'In Progress', linkLabel: '', linkUrl: '' },
+                        { id: 2003, week: 'W2', weekDate: '6/09-6/15', team: 'server', name: '【三英無雙】資料庫串接優化', status: 'Completed', linkLabel: '', linkUrl: '' },
+                        { id: 2004, week: 'W2', weekDate: '6/09-6/15', team: 'server', name: '【餘燼之刃】API 負載測試', status: 'In Progress', linkLabel: '', linkUrl: '' },
+                        { id: 2005, week: 'W2', weekDate: '6/09-6/15', team: 'client', name: '【三英無雙】大廳效能優化', status: 'Completed', linkLabel: '', linkUrl: '' },
+                        { id: 2006, week: 'W2', weekDate: '6/09-6/15', team: 'client', name: '【雷霆之錘2】Spine 動畫串接', status: 'In Progress', linkLabel: '', linkUrl: '' },
+                        { id: 2007, week: 'W2', weekDate: '6/09-6/15', team: 'probability', name: '【三英無雙】上線機率快測工具開發', status: 'Completed', linkLabel: '', linkUrl: '' },
+                        { id: 2008, week: 'W2', weekDate: '6/09-6/15', team: 'probability', name: '建立【雷霆之錘2】機率模擬', status: 'In Progress', linkLabel: '', linkUrl: '' }
+                    ];
                 },
 
                 toggleDarkMode() {
@@ -162,10 +208,12 @@
                             // 所有嘗試皆失敗（可能是本機直接雙擊開啟，受到 CORS 限制，或檔案不存在）
                             const storedTasks = localStorage.getItem('team3_grid_schedule_tasks');
                             const storedMilestones = localStorage.getItem('team3_grid_schedule_milestones');
+                            const storedActualTasks = localStorage.getItem('team3_grid_schedule_actual_tasks');
 
                             if (storedTasks && storedMilestones) {
                                 this.tasks = JSON.parse(storedTasks);
                                 this.milestones = JSON.parse(storedMilestones);
+                                if (storedActualTasks) this.actualTasks = JSON.parse(storedActualTasks);
                             } else {
                                 this.loadDemoData();
                             }
@@ -248,12 +296,39 @@
                         });
                     }
 
-                    if (importedTasks.length === 0 && importedMilestones.length === 0) {
+                    let importedActualTasks = [];
+                    if (wb.SheetNames.includes('實際進度')) {
+                        const wsActual = wb.Sheets['實際進度'];
+                        const rawActual = XLSX.utils.sheet_to_json(wsActual);
+                        
+                        importedActualTasks = rawActual.map((row, index) => {
+                            const rawTeam = row['執行組別'] || '';
+                            const parsedTeam = this.mapChineseTeamToId(rawTeam);
+                            const rawStatus = row['任務狀態'] || '';
+                            const parsedStatus = this.mapChineseStatusToId(rawStatus);
+
+                            return {
+                                id: row['任務ID'] ? parseInt(row['任務ID']) : (Date.now() + 5000 + index),
+                                week: row['週次'] || 'W1',
+                                weekDate: row['週次日期'] || '',
+                                name: row['任務名稱'] || '未命名任務',
+                                team: parsedTeam,
+                                status: parsedStatus,
+                                linkLabel: row['連結名稱'] || '',
+                                linkUrl: row['連結網址'] || ''
+                            };
+                        });
+                    }
+
+                    if (importedTasks.length === 0 && importedMilestones.length === 0 && importedActualTasks.length === 0) {
                         throw new Error('未在 Excel 檔案中找到任何有效數據！');
                     }
 
                     if (importedTasks.length > 0) this.tasks = importedTasks;
                     if (importedMilestones.length > 0) this.milestones = importedMilestones;
+                    if (wb.SheetNames.includes('實際進度')) {
+                        this.actualTasks = importedActualTasks;
+                    }
 
                     this.saveDataLocally();
                 },
@@ -294,6 +369,7 @@
                 saveDataLocally() {
                     localStorage.setItem('team3_grid_schedule_tasks', JSON.stringify(this.tasks));
                     localStorage.setItem('team3_grid_schedule_milestones', JSON.stringify(this.milestones));
+                    localStorage.setItem('team3_grid_schedule_actual_tasks', JSON.stringify(this.actualTasks));
                     this.updateProjectRange();
                     this.$nextTick(() => { 
                         if(window.lucide) lucide.createIcons(); 
@@ -351,6 +427,31 @@
                         weekNum++;
                     }
                     return weeks;
+                },
+
+                getActualWeeks() {
+                    if (this.actualTasks && this.actualTasks.length > 0) {
+                        const uniqueWeeks = [];
+                        const seen = new Set();
+                        this.actualTasks.forEach(t => {
+                            if (!seen.has(t.week)) {
+                                seen.add(t.week);
+                                uniqueWeeks.push({
+                                    label: t.week,
+                                    dateStr: t.weekDate || ''
+                                });
+                            }
+                        });
+                        return uniqueWeeks.sort((a, b) => {
+                            const numA = parseInt(a.label.replace(/\D/g, '')) || 0;
+                            const numB = parseInt(b.label.replace(/\D/g, '')) || 0;
+                            return numA - numB;
+                        });
+                    }
+                    return this.getWeeks().map(w => ({
+                        label: w.label,
+                        dateStr: w.dateStr
+                    }));
                 },
 
                 // 核心邏輯：判斷任務是否落在該週區間內
@@ -413,6 +514,16 @@
                             '達成日期': m.date || ''
                         }));
 
+                        const actualTasksForExcel = (this.actualTasks || []).map(t => ({
+                            '週次': t.week || '',
+                            '週次日期': t.weekDate || '',
+                            '執行組別': this.teams[t.team]?.name || '未知',
+                            '任務名稱': t.name || '',
+                            '任務狀態': this.getStatusLabel(t.status),
+                            '連結名稱': t.linkLabel || '',
+                            '連結網址': t.linkUrl || ''
+                        }));
+
                         const wb = XLSX.utils.book_new();
                         const wsTasks = XLSX.utils.json_to_sheet(tasksForExcel);
                         
@@ -426,6 +537,14 @@
                             const wsMilestones = XLSX.utils.json_to_sheet(milestonesForExcel);
                             wsMilestones['!cols'] = [{ wch: 30 }, { wch: 15 }];
                             XLSX.utils.book_append_sheet(wb, wsMilestones, '里程碑');
+                        }
+
+                        if (actualTasksForExcel.length > 0) {
+                            const wsActual = XLSX.utils.json_to_sheet(actualTasksForExcel);
+                            wsActual['!cols'] = [
+                                { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 45 }, { wch: 12 }, { wch: 15 }, { wch: 30 }
+                            ];
+                            XLSX.utils.book_append_sheet(wb, wsActual, '實際進度');
                         }
 
                         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -771,8 +890,24 @@
                     </div>
                 </div>
 
+                <!-- Tabs for Planned vs Actual Progress (Mockup styling) -->
+                <div class="flex items-center space-x-3 mb-2 flex-wrap gap-y-2">
+                    <button @click="activeTab = 'planned'" 
+                            class="px-4 py-2 text-xs md:text-sm font-extrabold rounded-full transition-all duration-200 flex items-center space-x-2"
+                            :class="activeTab === 'planned' ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md' : 'bg-slate-100 dark:bg-[#151e2e] hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800'">
+                        <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                        <span>預計進度 • 全專案</span>
+                    </button>
+                    <button @click="activeTab = 'actual'" 
+                            class="px-4 py-2 text-xs md:text-sm font-extrabold rounded-full transition-all duration-200 flex items-center space-x-2"
+                            :class="activeTab === 'actual' ? 'bg-gradient-to-r from-pink-500 to-violet-600 hover:opacity-95 text-white shadow-md' : 'bg-slate-100 dark:bg-[#151e2e] hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800'">
+                        <i data-lucide="activity" class="w-3.5 h-3.5"></i>
+                        <span>實際進度 • 每週</span>
+                    </button>
+                </div>
+
                 <!-- 2. Weekly Grid Board (The Vertical Kanban Layout) -->
-                <section class="bg-white dark:bg-transparent rounded-2xl overflow-hidden flex flex-col w-full">
+                <section x-show="activeTab === 'planned'" class="bg-white dark:bg-transparent rounded-2xl overflow-hidden flex flex-col w-full">
                     
                     <div class="overflow-x-auto w-full pb-6 custom-scrollbar">
                         <div class="min-w-[1000px] flex flex-col gap-y-4">
@@ -855,6 +990,78 @@
                         </div>
                     </div>
                 </section>
+
+                <!-- 3. Weekly Actual Progress Kanban Board -->
+                <div x-show="activeTab === 'actual'" x-cloak class="w-full flex flex-col md:flex-row gap-6 items-start">
+                    
+                    <!-- Left Sidebar: Weeks Selection -->
+                    <div class="w-full md:w-[200px] flex-shrink-0">
+                        <div class="flex flex-col space-y-2">
+                            <p class="text-[10px] md:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider px-1 mb-1">每週實際進度</p>
+                            <template x-for="w in getActualWeeks()" :key="w.label">
+                                <button @click="selectedActualWeek = w.label"
+                                        class="w-full text-left p-3.5 rounded-xl border transition-all duration-200 flex flex-col justify-center shadow-sm relative overflow-hidden"
+                                        :class="selectedActualWeek === w.label ? 'border-pink-500 bg-pink-500/5 dark:bg-pink-500/10 ring-1 ring-pink-500/20' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-[#151e2e] hover:border-slate-300 dark:hover:border-slate-700'">
+                                    <span class="font-extrabold text-sm" :class="selectedActualWeek === w.label ? 'text-pink-500' : 'text-slate-800 dark:text-slate-200'" x-text="w.label"></span>
+                                    <span class="text-[10px] text-slate-400 dark:text-slate-500 mt-1 font-medium" x-text="w.dateStr"></span>
+                                    <!-- Highlighting bar -->
+                                    <div x-show="selectedActualWeek === w.label" class="absolute left-0 top-0 bottom-0 w-1 bg-pink-500"></div>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Right Kanban Board: 4 Roles Columns -->
+                    <div class="flex-grow grid grid-cols-1 md:grid-cols-4 gap-4 w-full">
+                        <template x-for="teamId in ['director', 'server', 'client', 'probability']" :key="teamId">
+                            <div class="bg-white dark:bg-[#151e2e]/30 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 flex flex-col min-h-[500px]">
+                                
+                                <!-- Column Header -->
+                                <div class="flex items-center space-x-2 pb-3 border-b border-slate-200 dark:border-slate-800 mb-4 flex-shrink-0">
+                                    <span class="w-2.5 h-2.5 rounded-full" :class="teams[teamId].badgeColor"></span>
+                                    <span class="font-extrabold text-sm text-slate-800 dark:text-slate-100" x-text="teams[teamId].name"></span>
+                                </div>
+
+                                <!-- Column Task List -->
+                                <div class="flex flex-col space-y-3 flex-grow overflow-y-auto">
+                                    <template x-for="task in actualTasks.filter(t => t.week === selectedActualWeek && t.team === teamId)" :key="task.id">
+                                        <div class="bg-white dark:bg-[#151e2e] rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 shadow-sm hover:shadow transition duration-200 flex flex-col justify-between min-h-[100px]">
+                                            <div>
+                                                <!-- Status Badge -->
+                                                <div class="mb-2">
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-extrabold"
+                                                          :class="task.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : (task.status === 'In Progress' ? 'bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400')">
+                                                        <span x-text="task.status === 'Completed' ? '完成' : '進行中'"></span>
+                                                    </span>
+                                                </div>
+                                                <!-- Task Name -->
+                                                <p class="text-xs font-bold text-slate-800 dark:text-slate-200 leading-relaxed" x-text="task.name"></p>
+                                            </div>
+                                            
+                                            <!-- Dynamic Link / Attachment -->
+                                            <template x-if="task.linkUrl">
+                                                <a :href="task.linkUrl" target="_blank" class="mt-3 inline-flex items-center text-[10px] font-bold text-indigo-500 dark:text-indigo-400 hover:underline">
+                                                    <i :data-lucide="task.linkLabel.includes('影片') || task.linkLabel.includes('影') ? 'video' : 'paperclip'" class="w-3.5 h-3.5 mr-1 text-slate-400 dark:text-slate-500"></i>
+                                                    <span x-text="task.linkLabel || '查看連結'"></span>
+                                                </a>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    <!-- Empty Column State -->
+                                    <template x-if="actualTasks.filter(t => t.week === selectedActualWeek && t.team === teamId).length === 0">
+                                        <div class="rounded-xl border border-dashed border-slate-200 dark:border-slate-800/80 p-6 text-center text-[11px] text-slate-400 dark:text-slate-500 flex flex-col items-center justify-center flex-grow py-12">
+                                            <i data-lucide="inbox" class="w-5 h-5 mb-2 text-slate-300 dark:text-slate-600"></i>
+                                            <span>本週無實際進度</span>
+                                        </div>
+                                    </template>
+                                </div>
+
+                            </div>
+                        </template>
+                    </div>
+
+                </div>
 
             </main>
 
